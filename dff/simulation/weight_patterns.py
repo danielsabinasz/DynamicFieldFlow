@@ -1,7 +1,5 @@
 import tensorflow as tf
-import numpy as np
 import tensorflow_probability as tfp
-import matplotlib.pyplot as plt
 
 from dff.simulation.util import compute_positional_grid
 from dfpy import SumWeightPattern, GaussWeightPattern, RepeatedValueWeightPattern, CustomWeightPattern
