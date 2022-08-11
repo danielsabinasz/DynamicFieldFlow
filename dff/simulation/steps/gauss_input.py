@@ -20,7 +20,7 @@ def gauss_input_prepare_variables(step):
     return {"height": height, "mean": mean, "sigmas": sigmas}
 
 
-def gauss_input_prepare_time_and_variable_invariant_tensors(shape, domain, mean, sigmas, height):
+def gauss_input_prepare_time_invariant_variable_variant_tensors(shape, domain, mean, sigmas, height):
     """Prepares constants for the Gauss step.
 
     :param Tensor shape: shape of the grid representation

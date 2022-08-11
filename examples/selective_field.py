@@ -7,14 +7,14 @@ gauss_1 = GaussInput(
     dimensions=[Dimension(-25, 25, 51), Dimension(-25, 25, 51)],
     mean=[-15.0, -15],
     height=9.0,
-    sigmas=(3.0,3.0,)
+    sigmas=(5.0,5.0,)
 )
 
 gauss_2 = GaussInput(
     dimensions=[Dimension(-25, 25, 51), Dimension(-25, 25, 51)],
     mean=[15.0, 15.0],
     height=9.0,
-    sigmas=(3.0,3.0,)
+    sigmas=(5.0,5.0,)
 )
 
 field = Field(

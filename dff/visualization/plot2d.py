@@ -14,13 +14,22 @@ class Plot2D(Plot):
         self._figure = figure
         self._axes = axes
         self._pos = None
+        self._value_range = [-10, 10]
+
+    @property
+    def value_range(self):
+        return self._value_range
+
+    @value_range.setter
+    def value_range(self, value_range):
+        self._value_range = value_range
 
     def draw(self, value):
         dimensions = self._step.dimensions
 
         if self._pos is None:
-            vmin = tf.reduce_min(value)
-            vmax = tf.reduce_max(value)
+            vmin = self._value_range[0]
+            vmax = self._value_range[1]
             self._pos = self._axes.imshow(tf.transpose(value),
                             cmap=dff.visualization.color_maps["parula"],
                             origin='lower',

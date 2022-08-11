@@ -21,7 +21,12 @@ def default_snapshot_plot(step):
         if ndim == 1:
             return Plot1D(step)
         elif ndim == 2:
-            return Plot2D(step)
+            plot = Plot2D(step)
+            if type(step) == Field:
+                plot.value_range = [step.resting_level, -step.resting_level]
+            if type(step) == GaussInput:
+                plot.value_range = [0, step.height]
+            return plot
 
     elif type(step) == Image:
 

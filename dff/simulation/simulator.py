@@ -101,12 +101,51 @@ class Simulator:
         self._constants = {}
         self._variables = {}
         self._time_and_variable_invariant_tensors = {}
+        self._time_invariant_variable_variant_tensors_by_step_index = []
 
         self.prepare_constants_and_variables()
         self.prepare_time_and_variable_invariant_tensors()
         self.prepare_transformed_types_for_tensorflow_efficiency()
 
         self.reset_time()
+        self._simulation_calls_with_unrolled_time_steps = {}
+        self._rolled_simulation_call = None
+
+        # Register property observers on steps
+        for step in self._neural_structure.steps:
+            step.register_observer(self._handle_modified_step)
+
+        self._neural_structure.register_add_step_observer(self._handle_add_step)
+        self._neural_structure.register_add_connection_observer(self._handle_add_connection)
+
+    def _handle_modified_step(self, step, changed_param):
+        new_value = getattr(step, changed_param)
+        if changed_param in self._variables[step]:
+            self._variables[step][changed_param].assign(new_value)
+        elif changed_param == "interaction_kernel":
+            self._variables[step]["interaction_kernel_weight_pattern_config"] = \
+                weight_pattern_config_from_dfpy_weight_pattern(new_value, step.domain(), step.shape())
+
+        step_index = self._neural_structure.steps.index(step)
+        self._time_invariant_variable_variant_tensors_by_step_index[step_index] =\
+            self.compute_time_invariant_variable_variant_tensors_for_step(step, step_index)
+        self._values[step_index].assign(self.compute_initial_value_for_step(step_index, step))
+
+    def _handle_add_step(self, step):
+        self.prepare_constants_and_variables_for_step(step)
+        self.prepare_time_and_variable_invariant_tensors_for_step(step)
+        self.prepare_transformed_types_for_tensorflow_efficiency()
+        step_index = self._neural_structure.steps.index(step)
+        self._time_invariant_variable_variant_tensors_by_step_index.append(
+            self.compute_time_invariant_variable_variant_tensors_for_step(step, step_index)
+        )
+        self._values.append(tf.Variable(self.compute_initial_value_for_step(step_index, step)))
+        step.register_observer(self._handle_modified_step)
+        self._simulation_calls_with_unrolled_time_steps = {}
+        self._rolled_simulation_call = None
+
+    def _handle_add_connection(self, connection):
+        self.prepare_transformed_types_for_tensorflow_efficiency()
         self._simulation_calls_with_unrolled_time_steps = {}
         self._rolled_simulation_call = None
 
@@ -227,13 +266,7 @@ class Simulator:
         # GaussInput
         #
         elif type(step) == GaussInput:
-            time_and_variable_invariant_tensors = steps.gauss_input.gauss_input_prepare_time_and_variable_invariant_tensors(
-                constants["shape"],
-                constants["domain"],
-                variables["mean"],
-                variables["sigmas"],
-                variables["height"]
-            )
+            time_and_variable_invariant_tensors = []
 
         #
         # CustomInput
@@ -304,7 +337,7 @@ class Simulator:
         # GaussInput
         #
         if type(step) == GaussInput:
-            initial_value = time_and_variable_invariant_tensors[0]
+            initial_value = time_invariant_variable_variant_tensors[0]
 
         #
         # CustomInput
@@ -367,15 +400,25 @@ class Simulator:
         self._time_invariant_variable_variant_tensors_by_step_index = tensors_by_step_index
 
     def compute_time_invariant_variable_variant_tensors_for_step(self, step, step_index):
-        constants = self._constants_by_step_index[step_index]
-        variables = self._variables_by_step_index[step_index]
-        time_and_variable_invariant_tensors = self._time_and_variable_invariant_tensors_by_step_index[step_index]
+        constants = self._constants[step]
+        variables = self._variables[step]
+        time_and_variable_invariant_tensors = self._time_and_variable_invariant_tensors[step]
 
         if type(step) == Field:
             positional_grid = time_and_variable_invariant_tensors[0]
-            interaction_kernel_weight_pattern_config = variables[5]
+            interaction_kernel_positional_grid = time_and_variable_invariant_tensors[1]
+            interaction_kernel_weight_pattern_config = variables["interaction_kernel_weight_pattern_config"]
             tensors = steps.field.field_compute_time_invariant_variable_variant_tensors(
-                step.shape(), positional_grid, step.resting_level, interaction_kernel_weight_pattern_config
+                step.shape(), interaction_kernel_positional_grid, step.resting_level, interaction_kernel_weight_pattern_config
+            )
+
+        elif type(step) == GaussInput:
+            tensors = steps.gauss_input.gauss_input_prepare_time_invariant_variable_variant_tensors(
+                constants["shape"],
+                constants["domain"],
+                variables["mean"],
+                variables["sigmas"],
+                variables["height"]
             )
 
         else:
@@ -434,7 +477,6 @@ class Simulator:
         self._constants_by_step_index = []
         self._variables_by_step_index = []
         self._time_and_variable_invariant_tensors_by_step_index = []
-        self._time_invariant_variable_variant_tensors_by_step_index = []
         self._input_step_indices_by_step_index = []
         self._activation_function_types_by_step_index = []
         self._activation_function_betas_by_step_index = []
@@ -529,17 +571,24 @@ class Simulator:
             self._connection_expand_dimensions_by_step_index.append(connection_expand_dimensions)
             self._activation_function_types_by_step_index.append(tf.convert_to_tensor(activation_function_types))
 
+
     def simulate_time_step(self):
         """Simulates one time step.
         """
         return self.simulate_time_steps(1)
 
-    def simulate_until(self, time: int, mode = None, in_multiples_of = None):
+    def simulate_until(self, time: float, mode = None, in_multiples_of = None):
         if mode == None:
             mode = self._default_simulation_call_type
         current_time = self.get_time_as_tensor()
         duration_to_simulate = time - current_time
         num_time_steps = ceil(duration_to_simulate / self._time_step_duration)
+        return self.simulate_time_steps(num_time_steps, mode, in_multiples_of)
+
+    def simulate_for(self, duration: float, mode = None, in_multiples_of = None):
+        if mode == None:
+            mode = self._default_simulation_call_type
+        num_time_steps = ceil(duration / self._time_step_duration)
         return self.simulate_time_steps(num_time_steps, mode, in_multiples_of)
 
     def get_unrolled_simulation_call(self, num_time_steps):

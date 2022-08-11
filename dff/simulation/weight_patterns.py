@@ -28,8 +28,10 @@ def compute_weight_pattern_tensor(weight_pattern_config, positional_grid):
         result = weight_pattern_config["pattern"]
     elif weight_pattern_config["type"] == "ScalarWeightPattern":
         result = weight_pattern_config["scalar"]
-    elif weight_pattern_config["type"] == "None":
+    elif weight_pattern_config["type"] == "None" or  weight_pattern_config["type"] == None:
         result = tf.zeros(weight_pattern_config["shape"])
+    else:
+        raise RuntimeError("Unrecognized weight pattern type: " + str(weight_pattern_config["type"]))
 
     return result
 

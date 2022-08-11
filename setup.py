@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='DynamicFieldFlow',
       version='0.1',
@@ -7,11 +7,12 @@ setup(name='DynamicFieldFlow',
       author='Daniel Sabinasz',
       author_email='daniel@sabinasz.net',
       license='CC-BY-ND 3.0',
-      packages=['dff'],
+      packages=find_packages(include=['dff', 'dff.*']),
       install_requires=[
+          'DynamicFieldPy',
           'tensorflow',
           'matplotlib',
           'numpy',
-          'tensorflow_probability'
+          'tensorflow-probability'
       ],
       zip_safe=False)

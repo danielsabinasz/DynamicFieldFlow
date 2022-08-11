@@ -29,8 +29,17 @@ def field_prepare_variables(step):
     domain = step.domain()
     shape = step.shape()
 
+    kernel_domain = []
+    for i in range(len(domain)):
+        lower = domain[i][0]
+        upper = domain[i][1]
+        rng = upper - lower
+        kernel_domain.append([
+            -rng/2, rng/2
+        ])
+
     interaction_kernel_weight_pattern_config =\
-        weight_pattern_config_from_dfpy_weight_pattern(step.interaction_kernel, domain, shape)
+        weight_pattern_config_from_dfpy_weight_pattern(step.interaction_kernel, kernel_domain, shape)
 
     return {"resting_level": resting_level, "time_scale": time_scale,
             "sigmoid_beta": sigmoid_beta,
@@ -39,16 +48,27 @@ def field_prepare_variables(step):
 
 
 def field_prepare_time_and_variable_invariant_tensors(shape, domain):
-    return compute_positional_grid(shape, domain),
+    positional_grid = compute_positional_grid(shape, domain)
 
+    kernel_domain = []
+    for i in range(len(domain)):
+        lower = domain[i][0]
+        upper = domain[i][1]
+        rng = upper - lower
+        kernel_domain.append([
+            -rng/2, rng/2
+        ])
+    interaction_kernel_positional_grid = compute_positional_grid(shape, kernel_domain)
+
+    return positional_grid, interaction_kernel_positional_grid
 
 @tf.function
-def field_compute_time_invariant_variable_variant_tensors(shape, positional_grid, resting_level,
+def field_compute_time_invariant_variable_variant_tensors(shape, interaction_kernel_positional_grid, resting_level,
                                                           interaction_kernel_weight_pattern_config):
     resting_level_tensor = tf.ones(tuple([int(x) for x in shape])) * resting_level
-    lateral_interaction_weight_pattern_tensor = compute_weight_pattern_tensor(interaction_kernel_weight_pattern_config,
-                                                                              positional_grid)
-    return resting_level_tensor, lateral_interaction_weight_pattern_tensor
+    interaction_kernel_weight_pattern_tensor = compute_weight_pattern_tensor(interaction_kernel_weight_pattern_config,
+                                                                              interaction_kernel_positional_grid)
+    return resting_level_tensor, interaction_kernel_weight_pattern_tensor
 
 
 @tf.function
