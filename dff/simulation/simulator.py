@@ -125,6 +125,8 @@ class Simulator:
         elif changed_param == "interaction_kernel":
             self._variables[step]["interaction_kernel_weight_pattern_config"] = \
                 weight_pattern_config_from_dfpy_weight_pattern(new_value, step.domain(), step.shape())
+            self._simulation_calls_with_unrolled_time_steps = {}
+            self._rolled_simulation_call = None
 
         step_index = self._neural_structure.steps.index(step)
         self._time_invariant_variable_variant_tensors_by_step_index[step_index] =\

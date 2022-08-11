@@ -62,6 +62,7 @@ def field_prepare_time_and_variable_invariant_tensors(shape, domain):
 
     return positional_grid, interaction_kernel_positional_grid
 
+
 @tf.function
 def field_compute_time_invariant_variable_variant_tensors(shape, interaction_kernel_positional_grid, resting_level,
                                                           interaction_kernel_weight_pattern_config):
