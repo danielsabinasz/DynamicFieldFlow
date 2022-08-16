@@ -241,7 +241,8 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
 
             if step_type == TimedBoost:
                 new_values[i] = dff.simulation.steps.timed_boost.timed_boost_time_step(constants[0],
-                                                                                       start_time + time_step_duration * time_step)
+                                                                                       start_time + time_step_duration
+                                                                                       * tf.cast(time_step, tf.float32))
             elif step_type == Boost:
                 new_values[i] = dff.simulation.steps.boost.boost_time_step(constants[0])
             elif step_type == Field:

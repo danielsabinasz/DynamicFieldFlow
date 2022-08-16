@@ -56,7 +56,7 @@ class Simulator:
     """
 
     def __init__(self, neural_structure: NeuralStructure = None,
-                 time_step_duration: int=20, record_values=False,
+                 time_step_duration: float=20.0, record_values=False,
                  queue: Queue=None, record_time_points_of_interest: bool=False,
                  default_simulation_call_type = SimulationCallType.single,
                  debug_steps: list=[]):
@@ -582,6 +582,8 @@ class Simulator:
     def simulate_until(self, time: float, mode = None, in_multiples_of = None):
         if mode == None:
             mode = self._default_simulation_call_type
+        if type(time) == int:
+            time = float(time)
         current_time = self.get_time_as_tensor()
         duration_to_simulate = time - current_time
         num_time_steps = ceil(duration_to_simulate / self._time_step_duration)
@@ -958,7 +960,7 @@ class Simulator:
         return tf.multiply(tf.cast(self._time_step, tf.float32), self._time_step_duration)
 
     @property
-    def time_step_duration(self) -> int:
+    def time_step_duration(self) -> float:
         """Get the time step duration.
 
         :return: the time step duration
