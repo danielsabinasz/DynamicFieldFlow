@@ -3,6 +3,7 @@ from dff.visualization import default_snapshot_plot
 from dfpy import connect, Field, CustomInput, GaussWeightPattern
 from dfpy.dimension import Dimension
 
+# Note: The input pattern can also be a numpy array or a TensorFlow tensor
 custom_input = CustomInput(pattern=[0.0]*10+[6.0]*10+[0.0]*31)
 
 field = Field(

@@ -13,6 +13,7 @@ field = Field(
     noise_strength=0.2
 )
 
+# Note: The pointwise_weights parameter can also be a numpy array or a TensorFlow tensor
 connect(node, field, pointwise_weights=[6.0]*51)
 
 
