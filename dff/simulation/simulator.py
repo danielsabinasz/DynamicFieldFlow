@@ -191,6 +191,13 @@ class Simulator:
             variables = {}
 
         #
+        # TimedGate
+        #
+        if type(step) == TimedGate:
+            constants = steps.timed_gate.timed_gate_prepare_constants(step)
+            variables = {}
+
+        #
         # NoiseInput
         #
         if type(step) == NoiseInput:
@@ -277,6 +284,12 @@ class Simulator:
             time_and_variable_invariant_tensors = []
 
         #
+        # TimedGate
+        #
+        elif type(step) == TimedGate:
+            time_and_variable_invariant_tensors = []
+
+        #
         # Image
         #
         elif type(step) == Image:
@@ -346,6 +359,12 @@ class Simulator:
         #
         if type(step) == CustomInput:
             initial_value = constants["pattern"]
+
+        #
+        # TimedGate
+        #
+        if type(step) == TimedGate:
+            initial_value = tf.zeros(step.shape())
 
         #
         # Image

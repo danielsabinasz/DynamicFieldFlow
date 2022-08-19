@@ -20,7 +20,7 @@ gauss_2 = GaussInput(
 field = Field(
     dimensions=[Dimension(-25, 25, 51), Dimension(-25, 25, 51)],
     resting_level=-5.0,
-    interaction_kernel=GaussWeightPattern(height=1.0, sigmas=(3.0, 3.0,)),
+    interaction_kernel=GaussWeightPattern(height=2.0, sigmas=(3.0, 3.0,)),
     global_inhibition=-1.5,
     noise_strength=0.2
 )
