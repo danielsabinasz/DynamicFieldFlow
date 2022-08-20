@@ -49,7 +49,7 @@ def weight_pattern_config_from_dfpy_weight_pattern(dfpy_weight_pattern, domain, 
     if isinstance(dfpy_weight_pattern, GaussWeightPattern):
         weight_pattern_config["type"] = "GaussWeightPattern"
         weight_pattern_config["sigmas"] = tf.constant(dfpy_weight_pattern.sigmas)
-        weight_pattern_config["height"] = tf.Variable(dfpy_weight_pattern.height, "GaussWeightPattern.height")
+        weight_pattern_config["height"] = tf.Variable(dfpy_weight_pattern.height, name="GaussWeightPattern.height", trainable=True)
         weight_pattern_config["mean"] = tf.constant(dfpy_weight_pattern.mean)
     elif isinstance(dfpy_weight_pattern, SumWeightPattern):
         weight_pattern_config["type"] = "SumWeightPattern"
