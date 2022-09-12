@@ -209,6 +209,7 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
     # TODO see if performance can be improved by not creating a copy here
     # e.g., just an empty list, with or without specification of size, content shapes, ...
     new_values = current_values.copy()
+    tf.print(time_step)
     for i in range(0, len(steps)):
         step = steps[i]
         if not step.static:
