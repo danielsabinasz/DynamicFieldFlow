@@ -59,11 +59,12 @@ def create_unrolled_simulation_call_with_history(num_time_steps,
                                     connection_contraction_weights_by_step_index,
                                     connection_expand_dimensions_by_step_index,
                                     constants_by_step_index, variables_by_step_index,
-                                    time_and_variable_invariant_tensors_by_step_index,
-                                    time_invariant_variable_variant_tensors_by_step_index):
+                                    time_and_variable_invariant_tensors_by_step_index):
     logger.info(f"Creating new unrolled simulation call with history with {num_time_steps} time steps per call")
     before = time.time()
-    simulation_call = lambda start_time, values: simulate_unrolled_time_steps_with_history(num_time_steps, start_time,
+    simulation_call = lambda start_time, values, time_invariant_variable_variant_tensors_by_step_index:\
+                                                                              simulate_unrolled_time_steps_with_history(
+                                                                              num_time_steps, start_time,
                                                                               time_step_duration,
                                                                               steps,
                                                                               input_step_indices_by_step_index,
@@ -209,7 +210,6 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
     # TODO see if performance can be improved by not creating a copy here
     # e.g., just an empty list, with or without specification of size, content shapes, ...
     new_values = current_values.copy()
-    tf.print(time_step)
     for i in range(0, len(steps)):
         step = steps[i]
         if not step.static:
@@ -253,14 +253,18 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
                 new_values[i] = dff.simulation.steps.boost.boost_time_step(constants[0])
             elif step_type == Field:
                 resting_level_tensor = time_invariant_variable_variant_tensors[0]
+                positional_grid = time_invariant_variable_variant_tensors[0]
                 lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors[1]
                 new_values[i] = dff.simulation.steps.field.field_time_step(time_step_duration,
                                                                            constants[1],
                                                                            constants[2],
+                                                                           variables[0],
                                                                            variables[1],
                                                                            variables[2],
                                                                            variables[3],
                                                                            variables[4],
+                                                                           variables[5],
+                                                                           positional_grid,
                                                                            resting_level_tensor,
                                                                            lateral_interaction_weight_pattern_tensor,
                                                                            input_sum,

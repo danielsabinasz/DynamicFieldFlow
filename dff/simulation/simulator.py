@@ -430,7 +430,8 @@ class Simulator:
             interaction_kernel_positional_grid = time_and_variable_invariant_tensors[1]
             interaction_kernel_weight_pattern_config = variables["interaction_kernel_weight_pattern_config"]
             tensors = steps.field.field_compute_time_invariant_variable_variant_tensors(
-                step.shape(), interaction_kernel_positional_grid, step.resting_level, interaction_kernel_weight_pattern_config
+                step.shape(), interaction_kernel_positional_grid, step.resting_level,
+                interaction_kernel_weight_pattern_config
             )
 
         elif type(step) == GaussInput:
@@ -649,8 +650,7 @@ class Simulator:
                                                 self._connection_expand_dimensions_by_step_index,
                                                 self._constants_by_step_index,
                                                 self._variables_by_step_index,
-                                                self._time_and_variable_invariant_tensors_by_step_index,
-                                                self._time_invariant_variable_variant_tensors_by_step_index)
+                                                self._time_and_variable_invariant_tensors_by_step_index)
 
     def get_rolled_simulation_call(self):
         if self._rolled_simulation_call is None:
@@ -672,6 +672,9 @@ class Simulator:
         else:
             new_graph = False
         return self._rolled_simulation_call, new_graph
+
+    def get_time_invariant_variable_variant_tensors_by_step_index(self):
+        return self._time_invariant_variable_variant_tensors_by_step_index
 
     def get_largest_suitable_unrolled_simulation_call(self, max_num_time_steps):
         largest_num_time_steps_per_call = 0
