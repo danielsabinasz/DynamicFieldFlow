@@ -116,4 +116,6 @@ def compute_kernel_gauss_tensor_with_positional_grid(mean, sigmas, height, posit
 
     gauss_tensor = tf.multiply(height, normalized)
 
+    print(height, normalized)
+
     return gauss_tensor

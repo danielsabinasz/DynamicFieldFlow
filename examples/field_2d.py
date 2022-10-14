@@ -22,7 +22,7 @@ field = Field(
 connect(gauss, field, pointwise_weights=6.0, activation_function=Sigmoid(1))
 
 sim = Simulator()
-sim.simulate_until(1000)
+sim.simulate_until(700)
 plot = default_snapshot_plot(field)
 plot.draw(sim.get_value(field))
 plot.figure.show()
