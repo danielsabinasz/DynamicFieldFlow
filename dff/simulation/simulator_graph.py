@@ -209,7 +209,6 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
     # TODO see if performance can be improved by not creating a copy here
     # e.g., just an empty list, with or without specification of size, content shapes, ...
     new_values = current_values.copy()
-    tf.print(time_step)
     for i in range(0, len(steps)):
         step = steps[i]
         if not step.static:
@@ -329,6 +328,7 @@ def get_input_sum(input_steps_activation_function_types, input_steps_activation_
 
     # Iterate all other incoming connections
     for j in range(1, len(input_steps_values)):
+
         input = input_steps_values[j]
         activation_function_type = input_steps_activation_function_types[j]
         beta = input_steps_activation_function_betas[j]
