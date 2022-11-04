@@ -1,6 +1,7 @@
 import threading
 import time
 import logging
+import traceback
 from enum import Enum
 
 from dff.simulation.weight_patterns import compute_weight_pattern_tensor, weight_pattern_config_from_dfpy_weight_pattern
@@ -157,91 +158,96 @@ class Simulator:
         before = time.time()
         for i in range(0, len(steps)):
             step = steps[i]
-
-            self.prepare_constants_and_variables_for_step(step)
+            try:
+                self.prepare_constants_and_variables_for_step(step)
+            except Exception as e:
+                raise RuntimeError(f"Error trying to prepare constants and variables for step {step.name}") from e
         logger.debug(f"Done preparing constants and variables after {time.time()-before} seconds")
 
     def prepare_constants_and_variables_for_step(self, step):
         #
         # TimedBoost
         #
-        if type(step) == TimedBoost:
+        if isinstance(step, TimedBoost):
             constants = steps.timed_boost.timed_boost_prepare_constants(step)
             variables = {}
 
         #
         # Boost
         #
-        if type(step) == Boost:
+        elif isinstance(step, Boost):
             constants = steps.boost.boost_prepare_constants(step)
             variables = {}
 
         #
         # GaussInput
         #
-        if type(step) == GaussInput:
+        elif isinstance(step, GaussInput):
             constants = steps.gauss_input.gauss_input_prepare_constants(step)
             variables = steps.gauss_input.gauss_input_prepare_variables(step)
 
         #
         # CustomInput
         #
-        if type(step) == CustomInput:
+        elif isinstance(step, CustomInput):
             constants = steps.custom_input.custom_input_prepare_constants(step)
             variables = {}
 
         #
         # TimedGate
         #
-        if type(step) == TimedGate:
+        elif isinstance(step, TimedGate):
             constants = steps.timed_gate.timed_gate_prepare_constants(step)
             variables = {}
 
         #
         # NoiseInput
         #
-        if type(step) == NoiseInput:
+        elif isinstance(step, NoiseInput):
             constants = steps.noise_input.noise_input_prepare_constants(step)
             variables = {}
 
         #
         # Image
         #
-        if type(step) == Image:
+        elif isinstance(step, Image):
             constants = steps.image.image_prepare_constants(step)
             variables = {}
 
         #
         # NeuralField
         #
-        if type(step) == Field:
+        elif isinstance(step, Field):
             constants = steps.field.field_prepare_constants(step)
             variables = steps.field.field_prepare_variables(step)
 
         #
         # NeuralNode
         #
-        if type(step) == Node:
+        elif isinstance(step, Node):
             constants = steps.node.node_prepare_constants(step)
             variables = steps.node.node_prepare_variables(step)
 
         #
         # Scalar
         #
-        if type(step) == Scalar:
+        elif isinstance(step, Scalar):
             constants = {}
             variables = steps.scalar.scalar_prepare_variables(step)
 
         #
         # ScalarMultiplication
         #
-        if type(step) == ScalarMultiplication:
+        elif isinstance(step, ScalarMultiplication):
             constants = steps.scalar_multiplication.scalar_multiplication_prepare_constants(
                 step
             )
             variables = steps.scalar_multiplication.scalar_multiplication_prepare_variables(
                 step
             )
+
+        else:
+            raise RuntimeError(f"Unrecognized step type f{type(step)}")
 
         self._constants[step] = constants
         self._variables[step] = variables
@@ -252,7 +258,12 @@ class Simulator:
         before = time.time()
         for i in range(0, len(steps)):
             step = steps[i]
-            self.prepare_time_and_variable_invariant_tensors_for_step(step)
+
+            try:
+                self.prepare_time_and_variable_invariant_tensors_for_step(step)
+            except Exception as e:
+                raise RuntimeError(f"Error trying to prepare time- and variable-invariant tensors for step {step.name}") from e
+
         logger.info(f"Done preparing time-and-variable-invariant tensors after {time.time()-before} seconds")
 
     def prepare_time_and_variable_invariant_tensors_for_step(self, step):
@@ -262,43 +273,43 @@ class Simulator:
         #
         # TimedBoost
         #
-        if type(step) == TimedBoost:
+        if isinstance(step, TimedBoost):
             time_and_variable_invariant_tensors = []
 
         #
         # Boost
         #
-        elif type(step) == Boost:
+        elif isinstance(step, Boost):
             time_and_variable_invariant_tensors = []
 
         #
         # GaussInput
         #
-        elif type(step) == GaussInput:
+        elif isinstance(step, GaussInput):
             time_and_variable_invariant_tensors = []
 
         #
         # CustomInput
         #
-        elif type(step) == CustomInput:
+        elif isinstance(step, CustomInput):
             time_and_variable_invariant_tensors = []
 
         #
         # TimedGate
         #
-        elif type(step) == TimedGate:
+        elif isinstance(step, TimedGate):
             time_and_variable_invariant_tensors = []
 
         #
         # Image
         #
-        elif type(step) == Image:
+        elif isinstance(step, Image):
             time_and_variable_invariant_tensors = []
 
         #
         # NeuralField
         #
-        elif type(step) == Field:
+        elif isinstance(step, Field):
             # Should take ~0.026
             time_and_variable_invariant_tensors = steps.field\
                 .field_prepare_time_and_variable_invariant_tensors(
@@ -309,19 +320,19 @@ class Simulator:
         #
         # NeuralNode
         #
-        elif type(step) == Node:
+        elif isinstance(step, Node):
             time_and_variable_invariant_tensors = []
 
         #
         # Scalar
         #
-        elif type(step) == Scalar:
+        elif isinstance(step, Scalar):
             time_and_variable_invariant_tensors = []
 
         #
         # ScalarMultiplication
         #
-        elif type(step) == ScalarMultiplication:
+        elif isinstance(step, ScalarMultiplication):
             time_and_variable_invariant_tensors = []
 
         else:
@@ -339,67 +350,67 @@ class Simulator:
         #
         # TimedBoost
         #
-        if type(step) == TimedBoost:
+        if isinstance(step, TimedBoost):
             initial_value = steps.timed_boost.timed_boost_time_step(constants["values"], 0.0)
 
         #
         # Boost
         #
-        if type(step) == Boost:
+        if isinstance(step, Boost):
             initial_value = steps.boost.boost_time_step(constants["value"])
 
         #
         # GaussInput
         #
-        if type(step) == GaussInput:
+        if isinstance(step, GaussInput):
             initial_value = time_invariant_variable_variant_tensors[0]
 
         #
         # CustomInput
         #
-        if type(step) == CustomInput:
+        if isinstance(step, CustomInput):
             initial_value = constants["pattern"]
 
         #
         # TimedGate
         #
-        if type(step) == TimedGate:
+        if isinstance(step, TimedGate):
             initial_value = tf.zeros(step.shape())
 
         #
         # Image
         #
-        if type(step) == Image:
+        if isinstance(step, Image):
             initial_value = constants["image_tensor"]
 
         #
         # NeuralField
         #
-        if type(step) == Field:
+        if isinstance(step, Field):
             initial_value = time_invariant_variable_variant_tensors[0]
 
         #
         # NeuralNode
         #
-        if type(step) == Node:
+        if isinstance(step, Node):
             initial_value = variables["resting_level"]
 
         #
         # Scalar
         #
-        if type(step) == Scalar:
+        if isinstance(step, Scalar):
             initial_value = variables["value"]
 
         #
         # ScalarMultiplication
         #
-        if type(step) == ScalarMultiplication:
+        if isinstance(step, ScalarMultiplication):
             initial_value = tf.zeros(tuple([int(x) for x in constants["shape"]]))
 
         #
         # NoiseInput
         #
-        if type(step) == NoiseInput:
+        if isinstance(step, NoiseInput):
             initial_value = steps.noise_input.noise_input_time_step(self._time_step_duration, step._shape,
                                                                     step._strength)
 
@@ -425,7 +436,7 @@ class Simulator:
         variables = self._variables[step]
         time_and_variable_invariant_tensors = self._time_and_variable_invariant_tensors[step]
 
-        if type(step) == Field:
+        if isinstance(step, Field):
             positional_grid = time_and_variable_invariant_tensors[0]
             interaction_kernel_positional_grid = time_and_variable_invariant_tensors[1]
             interaction_kernel_weight_pattern_config = variables["interaction_kernel_weight_pattern_config"]
@@ -433,7 +444,7 @@ class Simulator:
                 step.shape(), interaction_kernel_positional_grid, step.resting_level, interaction_kernel_weight_pattern_config
             )
 
-        elif type(step) == GaussInput:
+        elif isinstance(step, GaussInput):
             tensors = steps.gauss_input.gauss_input_prepare_time_invariant_variable_variant_tensors(
                 constants["shape"],
                 constants["domain"],
@@ -530,7 +541,7 @@ class Simulator:
                 connection = connections_into_step[j]
                 input_step_index = connection.input_step_index
 
-                if type(connection) == SynapticConnection:
+                if isinstance(connection, SynapticConnection):
                     if isinstance(connection.activation_function, Sigmoid):
                         beta = connection.activation_function.beta
                         activation_function_type = 1
@@ -550,7 +561,7 @@ class Simulator:
                         kernel_weights = None
 
                     if connection.pointwise_weights is not None:
-                        if type(step) == Node:
+                        if isinstance(step, Node):
                             pointwise_weights = tf.convert_to_tensor(connection.pointwise_weights)
                         else:
                             domain = step.domain()
@@ -800,7 +811,7 @@ class Simulator:
         #if self._record_time_points_of_interest:
         #    for i in range(0, len(self._neural_structure.steps)):
         #        step = self._neural_structure.steps[i]
-        #        if type(step) == NeuralNode:
+        #        if isinstance(step, )NeuralNode:
         #           if new_values[i] > 0 and self._values[i] <= 0:
         #                t_np = t.numpy()
         #                print("on", t_np, self._neural_structure.steps[i].name)
@@ -901,7 +912,7 @@ class Simulator:
         :param Step or int step: the step whose recorded values should be returned (either step object or index)
         :return: the recorded values indexed by time step
         """
-        if type(step) == int:
+        if isinstance(step, int):
             return self._recorded_values[step]
         return self._recorded_values[self._neural_structure.steps.index(step)]
 

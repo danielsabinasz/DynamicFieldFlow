@@ -237,20 +237,19 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
                                           input_steps_expand_dimensions,
                                           input_steps_current_values, step_shape)
 
-            step_type = type(step)
 
-            if step_type == TimedBoost:
+            if isinstance(step, TimedBoost):
                 new_values[i] = dff.simulation.steps.timed_boost.timed_boost_time_step(constants[0],
                                                                                        start_time + time_step_duration
                                                                                        * tf.cast(time_step, tf.float32))
-            elif step_type == TimedGate:
+            elif isinstance(step, TimedGate):
                 new_values[i] = dff.simulation.steps.timed_gate.timed_gate_time_step(constants[0], constants[1],
                                                                                      input_sum,
                                                                                      start_time + time_step_duration
                                                                                        * tf.cast(time_step, tf.float32))
-            elif step_type == Boost:
+            elif isinstance(step, Boost):
                 new_values[i] = dff.simulation.steps.boost.boost_time_step(constants[0])
-            elif step_type == Field:
+            elif isinstance(step, Field):
                 resting_level_tensor = time_invariant_variable_variant_tensors[0]
                 lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors[1]
                 new_values[i] = dff.simulation.steps.field.field_time_step(time_step_duration,
@@ -264,17 +263,17 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
                                                                            lateral_interaction_weight_pattern_tensor,
                                                                            input_sum,
                                                                            current_values[i])
-            elif step_type == Node:
+            elif isinstance(step, Node):
                 new_values[i] = dff.simulation.steps.node.node_time_step(time_step_duration,
                                                                          variables[0], variables[1],
                                                                          variables[2], variables[3],
                                                                          variables[4],
                                                                          input_sum, current_values[i])
-            elif step_type == ScalarMultiplication:
+            elif isinstance(step, ScalarMultiplication):
                 new_values[i] = dff.simulation.steps.scalar_multiplication.scalar_multiplication_time_step(
                     variables[0],
                     input_sum)
-            elif step_type == NoiseInput:
+            elif isinstance(step, NoiseInput):
                 new_values[i] = dff.simulation.steps.noise_input.noise_input_time_step(time_step_duration, constants[0],
                                                                                        constants[1])
 
