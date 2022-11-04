@@ -13,7 +13,7 @@ setup(name='DynamicFieldFlow',
           'tensorflow==2.8.0',
           'matplotlib==3.5.1',
           'numpy==1.21',
-          'protobuf=3.20',
+          'protobuf==3.20',
           'tensorflow-probability==0.15.0'
       ],
       zip_safe=False)
