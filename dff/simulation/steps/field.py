@@ -62,14 +62,14 @@ def field_prepare_time_and_variable_invariant_tensors(shape, domain):
 
     return positional_grid, interaction_kernel_positional_grid
 
-
-@tf.function
-def field_compute_time_invariant_variable_variant_tensors(shape, interaction_kernel_positional_grid, resting_level,
-                                                          interaction_kernel_weight_pattern_config):
-    resting_level_tensor = tf.ones(tuple([int(x) for x in shape])) * resting_level
-    interaction_kernel_weight_pattern_tensor = compute_weight_pattern_tensor(interaction_kernel_weight_pattern_config,
-                                                                              interaction_kernel_positional_grid)
-    return resting_level_tensor, interaction_kernel_weight_pattern_tensor
+# TODO performance
+#@tf.function
+#def field_compute_time_invariant_variable_variant_tensors(shape, interaction_kernel_positional_grid, resting_level,
+#                                                          interaction_kernel_weight_pattern_config):
+#    resting_level_tensor = tf.ones(tuple([int(x) for x in shape])) * resting_level
+#    interaction_kernel_weight_pattern_tensor = compute_weight_pattern_tensor(interaction_kernel_weight_pattern_config,
+#                                                                              interaction_kernel_positional_grid)
+#    return resting_level_tensor, interaction_kernel_weight_pattern_tensor
 
 
 @tf.function

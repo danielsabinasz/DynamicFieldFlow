@@ -88,6 +88,7 @@ class Simulator:
         self._default_simulation_call_type = default_simulation_call_type
         self._debug_steps = debug_steps
 
+        self._initial_values = None
         self._values = None
         self._recorded_values = []
         self._recorded_time_points_of_interest = []
@@ -107,7 +108,8 @@ class Simulator:
         self.prepare_constants_and_variables()
         self.prepare_time_and_variable_invariant_tensors()
         self.prepare_transformed_types_for_tensorflow_efficiency()
-
+        self.prepare_time_invariant_variable_variant_tensors()
+        self.prepare_initial_values()
         self.reset_time()
         self._simulation_calls_with_unrolled_time_steps = {}
         self._rolled_simulation_call = None
@@ -286,7 +288,11 @@ class Simulator:
         # GaussInput
         #
         elif isinstance(step, GaussInput):
-            time_and_variable_invariant_tensors = []
+            time_and_variable_invariant_tensors = steps.gauss_input\
+                .gauss_input_prepare_time_and_variable_invariant_tensors(
+                    constants["shape"],
+                    constants["domain"]
+                )
 
         #
         # CustomInput
@@ -341,11 +347,13 @@ class Simulator:
 
         self._time_and_variable_invariant_tensors[step] = time_and_variable_invariant_tensors
 
-    def compute_initial_value_for_step(self, step_index, step):
+    def compute_initial_value_for_step(self, step_index, step, time_invariant_variable_variant_tensors_by_step_index = None):
+        if time_invariant_variable_variant_tensors_by_step_index is None:
+            time_invariant_variable_variant_tensors_by_step_index = self._time_invariant_variable_variant_tensors_by_step_index
         constants = self._constants[step]
         variables = self._variables[step]
         time_and_variable_invariant_tensors = self._time_and_variable_invariant_tensors[step]
-        time_invariant_variable_variant_tensors = self._time_invariant_variable_variant_tensors_by_step_index[step_index]
+        time_invariant_variable_variant_tensors = time_invariant_variable_variant_tensors_by_step_index[step_index]
 
         #
         # TimedBoost
@@ -387,7 +395,8 @@ class Simulator:
         # NeuralField
         #
         if isinstance(step, Field):
-            initial_value = time_invariant_variable_variant_tensors[0]
+            #initial_value = time_invariant_variable_variant_tensors[0] TODO performance
+            initial_value = tf.ones(tuple([int(x) for x in constants["shape"]])) * variables["resting_level"]
 
         #
         # NeuralNode
@@ -423,13 +432,17 @@ class Simulator:
         logger.info(f"Preparing time-invariant variable-variant tensors for "
                     f"{len(self._neural_structure.steps)} steps...")
         before = time.time()
+        tensors_by_step_index = self.compute_time_invariant_variable_variant_tensors()
+        logger.info(f"Done preparing time-invariant variable-variant tensors after {time.time() - before} seconds")
+        self._time_invariant_variable_variant_tensors_by_step_index = tensors_by_step_index
+
+    def compute_time_invariant_variable_variant_tensors(self):
         tensors_by_step_index = []
         for i in range(0, len(self._neural_structure.steps)):
             step = self._neural_structure.steps[i]
             tensors_for_step = self.compute_time_invariant_variable_variant_tensors_for_step(step, i)
             tensors_by_step_index.append(tensors_for_step)
-        logger.info(f"Done preparing time-invariant variable-variant tensors after {time.time() - before} seconds")
-        self._time_invariant_variable_variant_tensors_by_step_index = tensors_by_step_index
+        return tensors_by_step_index
 
     def compute_time_invariant_variable_variant_tensors_for_step(self, step, step_index):
         constants = self._constants[step]
@@ -440,17 +453,20 @@ class Simulator:
             positional_grid = time_and_variable_invariant_tensors[0]
             interaction_kernel_positional_grid = time_and_variable_invariant_tensors[1]
             interaction_kernel_weight_pattern_config = variables["interaction_kernel_weight_pattern_config"]
-            tensors = steps.field.field_compute_time_invariant_variable_variant_tensors(
-                step.shape(), interaction_kernel_positional_grid, step.resting_level, interaction_kernel_weight_pattern_config
-            )
+            #tensors = steps.field.field_compute_time_invariant_variable_variant_tensors(
+            #    step.shape(), interaction_kernel_positional_grid, step.resting_level, interaction_kernel_weight_pattern_config
+            #)
+            tensors = []
 
         elif isinstance(step, GaussInput):
+            positional_grid = time_and_variable_invariant_tensors[0]
             tensors = steps.gauss_input.gauss_input_prepare_time_invariant_variable_variant_tensors(
                 constants["shape"],
                 constants["domain"],
                 variables["mean"],
                 variables["sigmas"],
-                variables["height"]
+                variables["height"],
+                positional_grid
             )
 
         else:
@@ -458,15 +474,29 @@ class Simulator:
 
         return tensors
 
-    def compute_initial_values(self):
+    def update_initial_values(self, time_invariant_variable_variant_tensors_by_step_index):
         steps = self._neural_structure.steps
-        values = []
         for i in range(0, len(steps)):
             step = steps[i]
-            initial_value = self.compute_initial_value_for_step(i, step)
-            value = tf.Variable(initial_value=initial_value)
-            values.append(value)
-        return values
+            initial_value = self.compute_initial_value_for_step(i, step, time_invariant_variable_variant_tensors_by_step_index)
+            self._initial_values[i].assign(initial_value)
+        return self._initial_values
+
+    def compute_initial_values(self, time_invariant_variable_variant_tensors_by_step_index):
+        steps = self._neural_structure.steps
+        initial_values = []
+        for i in range(0, len(steps)):
+            step = steps[i]
+            initial_value = self.compute_initial_value_for_step(i, step, time_invariant_variable_variant_tensors_by_step_index)
+            initial_values.append(tf.Variable(initial_value=initial_value))
+        return initial_values
+
+    def prepare_initial_values(self):
+        self._initial_values = self.compute_initial_values(self._time_invariant_variable_variant_tensors_by_step_index)
+
+    @property
+    def initial_values(self):
+        return self._initial_values
 
     def reset_time(self):
         self._values = []
@@ -474,8 +504,6 @@ class Simulator:
         self._recorded_time_points_of_interest = []
         self._async_max_time = 0
         self._time_step.assign(0)
-
-        self.prepare_time_invariant_variable_variant_tensors()
 
         steps = self._neural_structure.steps
         for i in range(0, len(steps)):
@@ -485,7 +513,7 @@ class Simulator:
             if self._record_values:
                 self._recorded_values.append([])
 
-            initial_value = self.compute_initial_value_for_step(i, step)
+            initial_value = self._initial_values[i]
             value = tf.Variable(initial_value=initial_value)
             self._values.append(value)
 
@@ -660,8 +688,7 @@ class Simulator:
                                                 self._connection_expand_dimensions_by_step_index,
                                                 self._constants_by_step_index,
                                                 self._variables_by_step_index,
-                                                self._time_and_variable_invariant_tensors_by_step_index,
-                                                self._time_invariant_variable_variant_tensors_by_step_index)
+                                                self._time_and_variable_invariant_tensors_by_step_index)
 
     def get_rolled_simulation_call(self):
         if self._rolled_simulation_call is None:
@@ -714,13 +741,16 @@ class Simulator:
 
         return simulation_call, largest_num_time_steps_per_call, new_graph
 
-    def simulate_time_steps(self, num_time_steps: int, mode = SimulationCallType.single, in_multiples_of: int = None):
+    def simulate_time_steps(self, num_time_steps: int, mode = None, in_multiples_of: int = None):
         """Simulates the specified number of time steps.
 
         :param num_time_steps: the number of time steps to simulate
         :param mode: simulation mode
         """
         logger.debug("simulate_time_steps " + str(num_time_steps))
+
+        if mode == None:
+            mode = self._default_simulation_call_type
 
         if in_multiples_of is not None:
 
