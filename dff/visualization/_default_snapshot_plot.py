@@ -15,7 +15,7 @@ def default_snapshot_plot(step):
     :param step: the step to visualize
     """
 
-    if type(step) == Field or type(step) == GaussInput or type(step) == CustomInput or type(step) == TimedGate:
+    if isinstance(step, Field) or isinstance(step, GaussInput) or isinstance(step, CustomInput) or isinstance(step, TimedGate):
 
         ndim = len(step.dimensions)
 
@@ -23,17 +23,17 @@ def default_snapshot_plot(step):
             return Plot1D(step)
         elif ndim == 2:
             plot = Plot2D(step)
-            if type(step) == Field:
+            if isinstance(step, Field):
                 plot.value_range = [step.resting_level, -step.resting_level]
-            if type(step) == GaussInput:
+            if isinstance(step, GaussInput):
                 plot.value_range = [0, step.height]
             return plot
 
-    elif type(step) == Image:
+    elif isinstance(step, Image):
 
         return dff.visualization.image_plot
 
-    elif type(step) == TimedBoost or type(step) == Node:
+    elif isinstance(step, TimedBoost) or isinstance(step, Node):
 
         return Plot0D(step)
 

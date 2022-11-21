@@ -4,6 +4,7 @@ import logging
 import dfpy.config
 from dff.simulation.convolution import convolve
 from dff.simulation import steps
+from dff.simulation.weight_patterns import compute_weight_pattern_tensor
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +60,10 @@ def create_unrolled_simulation_call_with_history(num_time_steps,
                                     connection_contraction_weights_by_step_index,
                                     connection_expand_dimensions_by_step_index,
                                     constants_by_step_index, variables_by_step_index,
-                                    time_and_variable_invariant_tensors_by_step_index,
-                                    time_invariant_variable_variant_tensors_by_step_index):
+                                    time_and_variable_invariant_tensors_by_step_index):
     logger.info(f"Creating new unrolled simulation call with history with {num_time_steps} time steps per call")
     before = time.time()
-    simulation_call = lambda start_time, values: simulate_unrolled_time_steps_with_history(num_time_steps, start_time,
+    simulation_call = lambda start_time, values, time_invariant_variable_variant_tensors_by_step_index: simulate_unrolled_time_steps_with_history(num_time_steps, start_time,
                                                                               time_step_duration,
                                                                               steps,
                                                                               input_step_indices_by_step_index,
@@ -237,22 +237,25 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
                                           input_steps_expand_dimensions,
                                           input_steps_current_values, step_shape)
 
-            step_type = type(step)
 
-            if step_type == TimedBoost:
+            if isinstance(step, TimedBoost):
                 new_values[i] = dff.simulation.steps.timed_boost.timed_boost_time_step(constants[0],
                                                                                        start_time + time_step_duration
                                                                                        * tf.cast(time_step, tf.float32))
-            elif step_type == TimedGate:
+            elif isinstance(step, TimedGate):
                 new_values[i] = dff.simulation.steps.timed_gate.timed_gate_time_step(constants[0], constants[1],
                                                                                      input_sum,
                                                                                      start_time + time_step_duration
                                                                                        * tf.cast(time_step, tf.float32))
-            elif step_type == Boost:
+            elif isinstance(step, Boost):
                 new_values[i] = dff.simulation.steps.boost.boost_time_step(constants[0])
-            elif step_type == Field:
-                resting_level_tensor = time_invariant_variable_variant_tensors[0]
-                lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors[1]
+            elif isinstance(step, Field):
+                #resting_level_tensor = time_invariant_variable_variant_tensors[0] TODO performance
+                #lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors[1] TODO performance
+                resting_level_tensor = tf.ones(tuple([int(x) for x in constants[1]])) * variables[0]
+                lateral_interaction_weight_pattern_tensor = compute_weight_pattern_tensor(variables[5],
+                                                                                              time_and_variable_invariant_tensors[1])
+
                 new_values[i] = dff.simulation.steps.field.field_time_step(time_step_duration,
                                                                            constants[1],
                                                                            constants[2],
@@ -264,17 +267,17 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
                                                                            lateral_interaction_weight_pattern_tensor,
                                                                            input_sum,
                                                                            current_values[i])
-            elif step_type == Node:
+            elif isinstance(step, Node):
                 new_values[i] = dff.simulation.steps.node.node_time_step(time_step_duration,
                                                                          variables[0], variables[1],
                                                                          variables[2], variables[3],
                                                                          variables[4],
                                                                          input_sum, current_values[i])
-            elif step_type == ScalarMultiplication:
+            elif isinstance(step, ScalarMultiplication):
                 new_values[i] = dff.simulation.steps.scalar_multiplication.scalar_multiplication_time_step(
                     variables[0],
                     input_sum)
-            elif step_type == NoiseInput:
+            elif isinstance(step, NoiseInput):
                 new_values[i] = dff.simulation.steps.noise_input.noise_input_time_step(time_step_duration, constants[0],
                                                                                        constants[1])
 

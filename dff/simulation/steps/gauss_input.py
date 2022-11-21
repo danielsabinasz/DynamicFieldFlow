@@ -1,7 +1,8 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from dff.simulation.weight_patterns import compute_kernel_gauss_tensor
+from dff.simulation.util import compute_positional_grid
+from dff.simulation.weight_patterns import compute_kernel_gauss_tensor, compute_kernel_gauss_tensor_with_positional_grid
 
 tfd = tfp.distributions
 
@@ -20,7 +21,12 @@ def gauss_input_prepare_variables(step):
     return {"height": height, "mean": mean, "sigmas": sigmas}
 
 
-def gauss_input_prepare_time_invariant_variable_variant_tensors(shape, domain, mean, sigmas, height):
+def gauss_input_prepare_time_and_variable_invariant_tensors(shape, domain):
+    positional_grid = compute_positional_grid(shape, domain)
+
+    return positional_grid,
+
+def gauss_input_prepare_time_invariant_variable_variant_tensors(shape, domain, mean, sigmas, height, positional_grid):
     """Prepares constants for the Gauss step.
 
     :param Tensor shape: shape of the grid representation
@@ -28,9 +34,10 @@ def gauss_input_prepare_time_invariant_variable_variant_tensors(shape, domain, m
     :param Tensor mean: mean of the Gauss
     :param Tensor sigmas: sigmas of the Gauss
     :param Tensor height: height of the Gauss
+    :param Tensor positional_grid
     :return Tensor gauss_input_tensor: a computed tensor representation of the Gauss
     """
 
-    gauss_input_tensor = compute_kernel_gauss_tensor(shape, domain, mean, sigmas, height)
+    gauss_input_tensor = compute_kernel_gauss_tensor_with_positional_grid(mean, sigmas, height, positional_grid)
 
     return gauss_input_tensor,
