@@ -6,18 +6,19 @@ import matplotlib.pyplot as plt
 t_max=int(600)
 time_step_duration=int(20)
 num_time_steps=int(t_max/time_step_duration)
+num_epochs = 100
 
 gauss1 = GaussInput(
     dimensions=[Dimension(0, 50, 51)],
-    mean=[15.0],
-    height=3.0,
+    mean=[10.0],
+    height=5.0,
     sigmas=[3.0]
 )
 
 gauss2 = GaussInput(
     dimensions=[Dimension(0, 50, 51)],
-    mean=[35.0],
-    height=3.0,
+    mean=[40.0],
+    height=0.0,
     sigmas=[3.0]
 )
 
@@ -26,7 +27,7 @@ field = Field(
     resting_level=-5.0,
     interaction_kernel=SumWeightPattern([
         GaussWeightPattern(height=1.0, sigmas=(3.0, 3.0)),
-        GaussWeightPattern(height=0.0, sigmas=(5.0, 5.0))
+        GaussWeightPattern(height=-0.1, sigmas=(5.0, 5.0))
     ]),
     global_inhibition=0.0
 )
@@ -41,6 +42,91 @@ ns= dfpy.shared.get_default_neural_structure()
 
 simulation_call = dff_simulator.get_unrolled_simulation_call_with_history(num_time_steps)
 
+
+#@tf.function
+#def peaks_at_locations_in_interval(activation_history, p, t_min, t_max):
+#    return tf.reduce_sum([peaks_at_locations(activation_history[t], p) for t in range(t_min, t_max)])
+
+@tf.function
+def peak_at_location(activation_snapshot, peak_location, d_max, resting_level=-5.0):
+    sum = 0.0
+    abs_resting_level = abs(resting_level)
+    for i in range(activation_snapshot.shape[0]):
+        dist = tf.math.abs(i-peak_location)
+        if dist == 0:
+            sum += tf.nn.elu(-(activation_snapshot[i]))
+        elif dist > d_max:
+            sum += tf.nn.elu(activation_snapshot[i] + abs_resting_level) / (activation_snapshot.shape[0] - 2*d_max)
+    return sum
+
+
+@tf.function
+def subthreshold_bumps_at_locations(activation_snapshot, locations):
+    sum = 0.0
+    for location in locations:
+        for i in range(activation_snapshot.shape[0]):
+            dist = tf.math.abs(i-location)
+            if dist == 0:
+                sum += tf.nn.elu(tf.math.square(activation_snapshot[i]))
+    return sum
+
+
+@tf.function
+def smooth_minimum(x):
+    sum_nominator = 0.0
+    sum_denominator = 0.0
+    for i in range(len(x)):
+        sum_nominator += x[i] * tf.math.exp(-x[i])
+        sum_denominator += tf.math.exp(-x[i])
+    return sum_nominator / sum_denominator
+
+
+@tf.function
+def smooth_maximum(x):
+    sum_nominator = 0.0
+    sum_denominator = 0.0
+    for i in range(len(x)):
+        sum_nominator += x[i] * tf.math.exp(x[i])
+        sum_denominator += tf.math.exp(x[i])
+    return sum_nominator / sum_denominator
+
+
+@tf.function
+def smooth_argmax(x):
+    normalizer = tf.reduce_sum(tf.math.exp(x))
+    sum = 0.0
+    for i in range(len(x)):
+        sum += tf.math.exp(x[i]) / normalizer * i
+    return sum
+
+
+@tf.function
+def selective_peak_at_locations(activation_snapshot, peak_locations, d_max, resting_level=-5.0):
+    # Compute candidate losses for a peak at any one location
+    candidate_losses = []
+    for peak_location in peak_locations:
+        candidate_loss = peak_at_location(activation_snapshot, peak_location, d_max, resting_level)
+        candidate_losses.append(candidate_loss)
+
+    loss = smooth_minimum(candidate_losses)
+
+    return loss
+
+@tf.function
+def match_reaction_time(activation_snapshots, desired_reaction_time, window=None):
+    if window is None:
+        lower_bound = 0
+        upper_bound = len(activation_snapshots)
+    else:
+        lower_bound = desired_reaction_time-window
+        upper_bound = desired_reaction_time+window
+    normalized_max_activations = [tf.math.tanh(tf.reduce_max(activation_snapshots[t])) for t in range(len(activation_snapshots))]
+    nma_before_reaction_time = normalized_max_activations[lower_bound:desired_reaction_time-1]
+    nma_after_reaction_time = normalized_max_activations[desired_reaction_time-1:upper_bound]
+    #slope = (normalized_max_activations[upper_bound]-normalized_max_activations[lower_bound])/(upper_bound-lower_bound)
+    #return -slope
+    return tf.reduce_sum(nma_before_reaction_time) / (desired_reaction_time-lower_bound) - tf.reduce_sum(nma_after_reaction_time) / (upper_bound - desired_reaction_time)
+
 @tf.function
 def loss():
     time_invariant_variable_variant_tensors = dff_simulator.compute_time_invariant_variable_variant_tensors()
@@ -49,10 +135,12 @@ def loss():
     # Perform simulation
     values_history = simulation_call(0, initial_values, time_invariant_variable_variant_tensors)
 
-    gauss_distribution = initial_values[0] + initial_values[1]
-    gauss_distribution_shifted = gauss_distribution - tf.ones(gauss_distribution.shape)*2.5
+    #total_loss = subthreshold_bumps_at_locations(values_history[-1][2], [10, 40], 5)
+    #total_loss = peak_at_location(values_history[-1][2], 10, 5)
 
-    total_loss = tf.math.square(tf.reduce_sum(values_history[-1][2] - gauss_distribution_shifted))
+
+    total_loss = match_reaction_time([values_history[t][2] for t in range(len(values_history))], 20, 5)
+
     return total_loss
 
 
@@ -60,13 +148,11 @@ def loss():
 optimizer = tf.keras.optimizers.Adam(learning_rate=0.2)
 
 
-num_epochs = 100
 
-figure, axis = plt.subplots(1, num_epochs)
-figure.subplots_adjust(top=0.8)
-figure.set_figwidth(num_epochs)
-figure.set_figheight(1)
-
+final_activation_figure, final_activation_axis = plt.subplots(1, num_epochs)
+final_activation_figure.subplots_adjust(top=0.8)
+final_activation_figure.set_figwidth(num_epochs)
+final_activation_figure.set_figheight(1)
 
 losses = []
 resting_levels = []
@@ -99,19 +185,30 @@ for epoch in range(num_epochs):
     gradients = tape.gradient(ls, trainable_vars)
     optimizer.apply_gradients(zip(gradients, trainable_vars))
 
-
     if epoch % 1 == 0:
         col = epoch//1
         time_invariant_variable_variant_tensors = dff_simulator.compute_time_invariant_variable_variant_tensors()
         values_history = simulation_call(0, dff_simulator.initial_values, time_invariant_variable_variant_tensors)
-        axis[col].set_title(f"ep. {epoch}")
-        axis[col].set_ylim(-5, 5)
-        axis[col].plot(values_history[-1][2])
+        final_activation_axis[col].set_title(f"ep. {epoch}")
+        final_activation_axis[col].set_ylim(-5, 5)
+        final_activation_axis[col].plot(values_history[-1][2])
 
-        gauss_distribution = dff_simulator.initial_values[0] + dff_simulator.initial_values[1]
-        gauss_distribution_shifted = gauss_distribution - tf.ones(gauss_distribution.shape)*3
-        axis[col].plot(gauss_distribution_shifted)
+    #    gauss_distribution = dff_simulator.initial_values[0] + dff_simulator.initial_values[1]
+    #    gauss_distribution_shifted = gauss_distribution - tf.ones(gauss_distribution.shape)*3
+    #    final_activation_axis[col].plot(gauss_distribution_shifted)
 
+
+time_invariant_variable_variant_tensors = dff_simulator.compute_time_invariant_variable_variant_tensors()
+initial_values = dff_simulator.update_initial_values(time_invariant_variable_variant_tensors)
+values_history = simulation_call(0, initial_values, time_invariant_variable_variant_tensors)
+figure, axis = plt.subplots(1, num_time_steps)
+figure.subplots_adjust(top=0.8)
+figure.set_figwidth(num_time_steps)
+figure.set_figheight(1)
+for t in range(num_time_steps):
+    axis[t].set_title(f"t{t}")
+    axis[t].set_ylim(-5, 5)
+    axis[t].plot(values_history[t][2])
 
 plt.show()
 
@@ -146,3 +243,4 @@ plt.title("Mid-range inhibition")
 plt.xlabel("Epoch")
 plt.plot(mid_range_inhibitions)
 plt.show()
+

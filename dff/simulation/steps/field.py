@@ -20,10 +20,10 @@ def field_prepare_constants(step):
 
 
 def field_prepare_variables(step):
-    resting_level = tf.Variable(step.resting_level, name=step.name + ".resting_level", trainable=True)
+    resting_level = tf.Variable(step.resting_level, name=step.name + ".resting_level", trainable=True, constraint=lambda x: tf.math.minimum(x, 0))
     time_scale = tf.Variable(step.time_scale)
     sigmoid_beta = tf.Variable(step.activation_function.beta)
-    global_inhibition = tf.Variable(step.global_inhibition, name=step.name + ".global_inhibition", trainable=True)
+    global_inhibition = tf.Variable(step.global_inhibition, name=step.name + ".global_inhibition", trainable=True, constraint=lambda x: tf.math.minimum(x, 0))
     noise_strength = tf.Variable(step.noise_strength)
 
     domain = step.domain()
