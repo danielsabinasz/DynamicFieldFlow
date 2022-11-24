@@ -156,7 +156,7 @@ def simulate_unrolled_time_steps_with_history(num_time_steps, start_time, time_s
                                  values):
     logger.debug(f"trace simulate_unrolled_time_steps")
 
-    history = [tf.identity(values)]
+    history = [[tf.identity(x) for x in values]]
     for time_step in range(num_time_steps):
         time_step_tensor = tf.constant(time_step)
         # TODO: Why does tracing here take twice as much time?
