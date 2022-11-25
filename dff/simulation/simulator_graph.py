@@ -287,7 +287,7 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
     return new_values
 
 
-#@tf.function
+@tf.function
 def compute_output(input, activation_function_type, beta):
     logger.debug(f"trace apply_projection {input} {beta}")
 

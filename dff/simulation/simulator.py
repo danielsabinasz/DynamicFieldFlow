@@ -4,6 +4,7 @@ import logging
 import traceback
 from enum import Enum
 
+from dff.simulation.util import compute_positional_grid
 from dff.simulation.weight_patterns import compute_weight_pattern_tensor, weight_pattern_config_from_dfpy_weight_pattern
 from dfpy.activation_function import Sigmoid, Identity
 
@@ -450,9 +451,9 @@ class Simulator:
         time_and_variable_invariant_tensors = self._time_and_variable_invariant_tensors[step]
 
         if isinstance(step, Field):
-            positional_grid = time_and_variable_invariant_tensors[0]
-            interaction_kernel_positional_grid = time_and_variable_invariant_tensors[1]
-            interaction_kernel_weight_pattern_config = variables["interaction_kernel_weight_pattern_config"]
+            #positional_grid = time_and_variable_invariant_tensors[0]
+            #interaction_kernel_positional_grid = time_and_variable_invariant_tensors[1]
+            #interaction_kernel_weight_pattern_config = variables["interaction_kernel_weight_pattern_config"]
             #tensors = steps.field.field_compute_time_invariant_variable_variant_tensors(
             #    step.shape(), interaction_kernel_positional_grid, step.resting_level, interaction_kernel_weight_pattern_config
             #)
@@ -580,10 +581,17 @@ class Simulator:
                     if connection.kernel_weights is not None:
                         domain = step.domain()
                         shape = step.shape()
+
+                        lower = domain[0][0]
+                        upper = domain[0][1]
+                        rng = upper - lower
+                        kernel_domain = [[-rng / 2, rng / 2]]
+                        kernel_positional_grid = compute_positional_grid(shape, kernel_domain)
+
                         # TODO handle scalar case differently
                         kernel_weights = compute_weight_pattern_tensor(
                             weight_pattern_config_from_dfpy_weight_pattern(connection.kernel_weights, domain, shape),
-                            self._time_and_variable_invariant_tensors_by_step_index[i][0]
+                            kernel_positional_grid
                         )
                     else:
                         kernel_weights = None
