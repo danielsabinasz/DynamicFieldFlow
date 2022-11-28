@@ -18,6 +18,16 @@ connect(custom_input, field)
 
 
 sim = Simulator()
+
+sim.simulate_until(1000)
+plot = default_snapshot_plot(field)
+plot.draw(sim.get_value(field))
+plot.figure.show()
+
+custom_input.pattern = [0.0]*31+[6.0]*10+[0.0]*10
+
+sim.update_initial_values()
+sim.reset_time()
 sim.simulate_until(1000)
 plot = default_snapshot_plot(field)
 plot.draw(sim.get_value(field))

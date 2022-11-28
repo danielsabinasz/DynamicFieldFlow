@@ -193,8 +193,8 @@ class Simulator:
         # CustomInput
         #
         elif isinstance(step, CustomInput):
-            constants = steps.custom_input.custom_input_prepare_constants(step)
-            variables = {}
+            constants = {}
+            variables = steps.custom_input.custom_input_prepare_variables(step)
 
         #
         # TimedGate
@@ -378,7 +378,7 @@ class Simulator:
         # CustomInput
         #
         if isinstance(step, CustomInput):
-            initial_value = constants["pattern"]
+            initial_value = variables["pattern"]
 
         #
         # TimedGate
@@ -475,7 +475,9 @@ class Simulator:
 
         return tensors
 
-    def update_initial_values(self, time_invariant_variable_variant_tensors_by_step_index):
+    def update_initial_values(self, time_invariant_variable_variant_tensors_by_step_index=None):
+        if time_invariant_variable_variant_tensors_by_step_index == None:
+            time_invariant_variable_variant_tensors_by_step_index = self._time_invariant_variable_variant_tensors_by_step_index
         steps = self._neural_structure.steps
         for i in range(0, len(steps)):
             step = steps[i]
