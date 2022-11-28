@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from dfpy import TimedGate, CustomInput
+from dfpy import TimedGate, CustomInput, TimedCustomInput
 
 import dff.visualization
 from dff.visualization.plot0d import Plot0D
@@ -15,7 +15,7 @@ def default_snapshot_plot(step):
     :param step: the step to visualize
     """
 
-    if isinstance(step, Field) or isinstance(step, GaussInput) or isinstance(step, CustomInput) or isinstance(step, TimedGate):
+    if isinstance(step, Field) or isinstance(step, GaussInput) or isinstance(step, CustomInput) or isinstance(step, TimedGate) or isinstance(step, TimedCustomInput):
 
         ndim = len(step.dimensions)
 

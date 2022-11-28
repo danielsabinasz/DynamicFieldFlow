@@ -1,7 +1,6 @@
 import threading
 import time
 import logging
-import traceback
 from enum import Enum
 
 from dff.simulation.util import compute_positional_grid
@@ -197,6 +196,13 @@ class Simulator:
             variables = steps.custom_input.custom_input_prepare_variables(step)
 
         #
+        # TimedCustomInput
+        #
+        elif isinstance(step, TimedCustomInput):
+            constants = {}
+            variables = steps.timed_custom_input.timed_custom_input_prepare_variables(step)
+
+        #
         # TimedGate
         #
         elif isinstance(step, TimedGate):
@@ -302,6 +308,12 @@ class Simulator:
             time_and_variable_invariant_tensors = []
 
         #
+        # TimedCustomInput
+        #
+        elif isinstance(step, TimedCustomInput):
+            time_and_variable_invariant_tensors = []
+
+        #
         # TimedGate
         #
         elif isinstance(step, TimedGate):
@@ -379,6 +391,12 @@ class Simulator:
         #
         if isinstance(step, CustomInput):
             initial_value = variables["pattern"]
+
+        #
+        # TimedCustomInput
+        #
+        if isinstance(step, TimedCustomInput):
+            initial_value = variables["timed_custom_input"][0]
 
         #
         # TimedGate
@@ -827,7 +845,7 @@ class Simulator:
                         if new_graph:
                             logger.info(f"Tracing simulation call with 1 time step...")
                             before = time.time()
-                        simulation_call(self.get_time_as_tensor(), self._values)
+                        simulation_call(self.get_time_as_tensor() + i*self._time_step_duration, self._values)
                         if new_graph:
                             trace_duration = time.time()-before
                             logger.info("Done tracing after " + str(trace_duration) + " seconds")

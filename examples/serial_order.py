@@ -23,11 +23,11 @@ for i in range(num_ordinal_nodes):
     )
     memory_nodes.append(memory_node)
 
-    connect(ordinal_node, memory_node, pointwise_weights=6.0)
+    connect(ordinal_node, memory_node, pointwise_weights=8.0)
 
     # Connect previous memory node to current ordinal node
     if i > 0:
-        connect(memory_nodes[i - 1], ordinal_node, pointwise_weights=6.0)
+        connect(memory_nodes[i - 1], ordinal_node, pointwise_weights=8.0)
 
     # Slightly inhibit ordinal node by memory node so that
     # it does not win the next competition
@@ -44,7 +44,7 @@ for i in range(num_ordinal_nodes):
 # Create static input to first ordinal node
 static_input = TimedBoost(
     values={
-        0: 6.0,
+        0: 8.0,
         200: 0.0
     }
 )

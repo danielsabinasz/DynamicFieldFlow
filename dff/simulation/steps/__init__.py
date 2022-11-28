@@ -11,3 +11,4 @@ import dff.simulation.steps.scalar_multiplication
 import dff.simulation.steps.spatial_relation_pattern
 import dff.simulation.steps.noise_input
 import dff.simulation.steps.timed_gate
+import dff.simulation.steps.timed_custom_input
