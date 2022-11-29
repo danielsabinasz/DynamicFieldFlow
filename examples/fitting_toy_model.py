@@ -42,29 +42,23 @@ ns= dfpy.shared.get_default_neural_structure()
 
 simulation_call = dff_simulator.get_unrolled_simulation_call_with_history(num_time_steps)
 
-
 @tf.function
-def peak_at_location(activation_snapshot, peak_location, d_max, resting_level=-5.0):
+def peak_at_location(activation_snapshot, peak_location, radius, resting_level=-5.0):
     sum = 0.0
-    abs_resting_level = abs(resting_level)
     for i in range(activation_snapshot.shape[0]):
         dist = tf.math.abs(i-peak_location)
-        if dist <= d_max:
+        if dist <= radius:
             sum += tf.nn.elu(-(activation_snapshot[i]))
-        elif dist > d_max and dist < 2*d_max:
+        elif dist > radius and dist < 2*radius:
             sum += tf.nn.elu(activation_snapshot[i])
     return sum
 
 
 @tf.function
-def subthreshold_bumps_at_locations(activation_snapshot, locations):
+def subthreshold_bumps_at_locations(activation_snapshot, locations, distance=0.0):
     sum = 0.0
     for location in locations:
-        sum += tf.nn.elu(tf.math.square(activation_snapshot[location]))
-        #for i in range(activation_snapshot.shape[0]):
-        #    dist = tf.math.abs(i-location)
-        #    if dist == 0:
-        #        sum += tf.nn.elu(tf.math.square(activation_snapshot[i]))
+        sum += tf.nn.elu(tf.math.square(activation_snapshot[location]+distance))
     return sum
 
 
@@ -120,8 +114,6 @@ def match_reaction_time(activation_snapshots, desired_reaction_time, window=None
     normalized_activations = [tf.math.tanh(tf.reduce_max(activation_snapshots[t])) for t in range(len(activation_snapshots))]
     nma_before_reaction_time = normalized_activations[lower_bound:desired_reaction_time-1]
     nma_after_reaction_time = normalized_activations[desired_reaction_time-1:upper_bound]
-    #slope = (normalizeradius_activations[upper_bound]-normalizeradius_activations[lower_bound])/(upper_bound-lower_bound)
-    #return -slope
     return tf.reduce_sum(nma_before_reaction_time) / (desired_reaction_time-lower_bound) - tf.reduce_sum(nma_after_reaction_time) / (upper_bound - desired_reaction_time)
 
 @tf.function
@@ -132,10 +124,25 @@ def loss():
     # Perform simulation
     values_history = simulation_call(0, initial_values, time_invariant_variable_variant_tensors)
 
-    #total_loss = subthreshold_bumps_at_locations(values_history[30][2], [10, 40])
-    #total_loss = peak_at_location(values_history[30][2], 10, 5)
+    loss_bumps = subthreshold_bumps_at_locations(
+        activation_snapshot=values_history[30][2],
+        locations=[10, 40],
+        distance=0.0
+    )
+    loss_peak = peak_at_location(
+        activation_snapshot=values_history[30][2],
+        peak_location=10,
+        radius=5
+    )
+    loss_rt = match_reaction_time(
+        activation_snapshots=[values_history[t][2] for t in range(len(values_history))],
+        desired_reaction_time=10,
+        window=10
+    )
 
-    total_loss = match_reaction_time([values_history[t][2] for t in range(len(values_history))], 20, 10)
+    # total_loss = loss_bumps
+    # total_loss = loss_peak
+    total_loss = loss_rt
 
     return total_loss
 
