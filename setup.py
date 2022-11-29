@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 import distutils
-is_mac = distutil.util.get_platform().startswith("mac")
+is_mac = distutils.util.get_platform().startswith("mac")
 
 if not is_mac:
 
