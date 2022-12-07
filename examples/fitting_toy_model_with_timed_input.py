@@ -32,8 +32,8 @@ field = Field(
     dimensions=[Dimension(0, 50, 51)],
     resting_level=-5.0,
     interaction_kernel=SumWeightPattern([
-        GaussWeightPattern(height=1.0, sigmas=(3.0, 3.0)),
-        GaussWeightPattern(height=-0.1, sigmas=(5.0, 5.0))
+        GaussWeightPattern(height=1.0, sigmas=(3.0,)),
+        GaussWeightPattern(height=-0.1, sigmas=(5.0,))
     ]),
     global_inhibition=0.0
 )

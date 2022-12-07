@@ -23,7 +23,7 @@ def compute_positional_grid(shape: tf.Tensor, domain: list) -> tf.Tensor:
                                      dtype=np.float32))
 
     # Combine linear spaces into meshgrid
-    mgrid = tf.meshgrid(*reversed(linspaces))
+    mgrid = tf.meshgrid(*linspaces, indexing="ij")
 
     # Reshape meshgrid
     positional_grid = np.zeros(tuple([int(x) for x in shape]) + (len(domain),), dtype=np.float32)

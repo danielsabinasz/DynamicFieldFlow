@@ -665,7 +665,7 @@ class Simulator:
         """
         return self.simulate_time_steps(1)
 
-    def simulate_until(self, time: float, mode = None, in_multiples_of = None):
+    def simulate_until(self, time: float, mode: str = None, in_multiples_of: int = None):
         if mode == None:
             mode = self._default_simulation_call_type
         if type(time) == int:

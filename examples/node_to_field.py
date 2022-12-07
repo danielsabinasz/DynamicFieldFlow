@@ -14,7 +14,7 @@ field = Field(
 )
 
 # Note: The pointwise_weights parameter can also be a numpy array or a TensorFlow tensor
-connect(node, field, pointwise_weights=[6.0]*51)
+connect(node, field, pointwise_weights=[6.0]*31 + [0.0]*20)
 
 
 sim = Simulator()

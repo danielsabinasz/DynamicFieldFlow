@@ -269,6 +269,7 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
                                                                            lateral_interaction_weight_pattern_tensor,
                                                                            input_sum,
                                                                            current_values[i])
+
             elif isinstance(step, Node):
                 new_values[i] = dff.simulation.steps.node.node_time_step(time_step_duration,
                                                                          variables[0], variables[1],

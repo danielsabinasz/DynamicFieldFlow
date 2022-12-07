@@ -35,6 +35,11 @@ def convolve(x, w):
         w = tf.reshape(w, [w_shape[0], w_shape[1], 1, 1])
         conv = tf.nn.conv2d(x, w, strides=[1,1], padding="SAME")
         conv = tf.reshape(conv, [x_shape[0], x_shape[1]])
+    elif rank == 3:
+        x = tf.reshape(x, [1, x_shape[0], x_shape[1], x_shape[2], 1])
+        w = tf.reshape(w, [w_shape[0], w_shape[1], w_shape[2], 1, 1])
+        conv = tf.nn.conv3d(x, w, strides=[1,1,1,1,1], padding="SAME")
+        conv = tf.reshape(conv, [x_shape[0], x_shape[1], x_shape[2]])
     else:
         raise Exception("Unsupported rank " + str(rank))
 
