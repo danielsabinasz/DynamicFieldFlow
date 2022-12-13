@@ -1,9 +1,10 @@
 from setuptools import setup, find_packages
-import distutils
+import sysconfig
 
-is_mac = distutils.util.get_platform().startswith("mac")
+platform = sysconfig.get_platform()
+is_m1_mac = platform.startswith("mac") and "universal" in platform
 
-if is_mac:
+if is_m1_mac:
     install_requires = [
         'DynamicFieldPy',
         'tensorflow-macos==2.8.0',

@@ -54,18 +54,18 @@ def peak_at_location(activation_snapshot, peak_location, radius, resting_level=-
     for i in range(activation_snapshot.shape[0]):
         dist = tf.math.abs(i-peak_location)
         if dist <= radius:
-            sum += tf.nn.elu(-(activation_snapshot[i]))
+            sum += 1 + tf.nn.elu(5*-(activation_snapshot[i]))
         elif dist > radius and dist < 2*radius:
-            sum += tf.nn.elu(activation_snapshot[i])
-    return sum
+            sum += 1 + tf.nn.elu(5*activation_snapshot[i])
+    return sum / (2*radius)
 
 
 @tf.function
 def subthreshold_bumps_at_locations(activation_snapshot, locations, distance=0.0):
     sum = 0.0
     for location in locations:
-        sum += tf.nn.elu(tf.math.square(activation_snapshot[location]+distance))
-    return sum
+        sum += 1 + tf.nn.elu(tf.math.abs(activation_snapshot[location]+distance))
+    return sum/len(locations)
 
 
 @tf.function
@@ -117,10 +117,12 @@ def match_reaction_time(activation_snapshots, desired_reaction_time, window=None
     else:
         lower_bound = desired_reaction_time-window
         upper_bound = desired_reaction_time+window
-    normalized_activations = [tf.math.tanh(tf.reduce_max(activation_snapshots[t])) for t in range(len(activation_snapshots))]
-    nma_before_reaction_time = normalized_activations[lower_bound:desired_reaction_time-1]
-    nma_after_reaction_time = normalized_activations[desired_reaction_time-1:upper_bound]
-    return tf.reduce_sum(nma_before_reaction_time) / (desired_reaction_time-lower_bound) - tf.reduce_sum(nma_after_reaction_time) / (upper_bound - desired_reaction_time)
+    max_activations = [tf.reduce_max(activation_snapshots[t]) for t in range(len(activation_snapshots))]
+    max_activations_before_reaction_time = max_activations[lower_bound:desired_reaction_time-1]
+    max_activations_after_reaction_time = max_activations[desired_reaction_time-1:upper_bound]
+    elued_max_activations_before_reaction_time = 1+tf.nn.elu(tf.convert_to_tensor(max_activations_before_reaction_time))
+    elued_max_activations_after_reaction_time = 1+tf.nn.elu(-tf.convert_to_tensor(max_activations_after_reaction_time))
+    return tf.reduce_sum(elued_max_activations_before_reaction_time) / (desired_reaction_time-lower_bound) + tf.reduce_sum(elued_max_activations_after_reaction_time) / (upper_bound - desired_reaction_time)
 
 @tf.function
 def loss():
@@ -142,12 +144,13 @@ def loss():
     )
     loss_rt = match_reaction_time(
         activation_snapshots=[values_history[t][1] for t in range(len(values_history))],
-        desired_reaction_time=25,
+        desired_reaction_time=20,
         window=5
     )
 
-    total_loss = 2*loss_bumps + 0.5*loss_peak + 30*loss_rt
-    tf.print(loss_bumps, loss_peak, loss_rt, loss_peak/loss_rt)
+    #total_loss = 2*loss_bumps + 0.5*loss_peak + 30*loss_rt
+    total_loss = loss_bumps + loss_peak + loss_rt
+    tf.print(loss_bumps, loss_peak, loss_rt)
 
     return total_loss
 
@@ -157,16 +160,18 @@ optimizer = tf.keras.optimizers.Adam(learning_rate=0.2)
 
 
 
-final_activation_figure, final_activation_axis = plt.subplots(1, num_epochs)
+final_activation_figure, final_activation_axis = plt.subplots(1, num_epochs//10+1)
 final_activation_figure.subplots_adjust(top=0.8)
-final_activation_figure.set_figwidth(num_epochs)
+final_activation_figure.set_figwidth(num_epochs//10)
 final_activation_figure.set_figheight(1)
 
 losses = []
 resting_levels = []
 global_inhibitions = []
-local_excitations = []
-mid_range_inhibitions = []
+local_exc_heights = []
+local_exc_sigmas = []
+mid_range_inhibition_heights = []
+mid_range_inhibition_sigmas = []
 for epoch in range(num_epochs):
     with tf.GradientTape() as tape:
         ls = loss()
@@ -177,29 +182,45 @@ for epoch in range(num_epochs):
 
     resting_level = dff_simulator.variables[field]["resting_level"]
     global_inhibition = dff_simulator.variables[field]["global_inhibition"]
-    local_exc = dff_simulator.variables[field]["interaction_kernel_weight_pattern_config"]["summands"][0]["height"]
-    mid_range_inh = dff_simulator.variables[field]["interaction_kernel_weight_pattern_config"]["summands"][1]["height"]
+    local_exc_height = dff_simulator.variables[field]["interaction_kernel_weight_pattern_config"]["summands"][0]["height"]
+    local_exc_sigma = dff_simulator.variables[field]["interaction_kernel_weight_pattern_config"]["summands"][0]["sigmas"]
+    mid_range_inh_height = dff_simulator.variables[field]["interaction_kernel_weight_pattern_config"]["summands"][1]["height"]
+    mid_range_inh_sigma = dff_simulator.variables[field]["interaction_kernel_weight_pattern_config"]["summands"][1]["sigmas"]
     print(f"resting_level={resting_level.numpy()}")
     print(f"global_inhibition={global_inhibition.numpy()}")
-    print(f"local_exc={local_exc.numpy()}")
-    print(f"mid_range_inh={mid_range_inh.numpy()}")
+    print(f"local_exc_height={local_exc_height.numpy()}")
+    print(f"local_exc_sigma={local_exc_sigma.numpy()}")
+    print(f"mid_range_inh_height={mid_range_inh_height.numpy()}")
+    print(f"mid_range_inh_sigma={mid_range_inh_sigma.numpy()}")
 
     resting_levels.append(resting_level.numpy())
     global_inhibitions.append(global_inhibition.numpy())
-    local_excitations.append(local_exc.numpy())
-    mid_range_inhibitions.append(mid_range_inh.numpy())
+    local_exc_heights.append(local_exc_height.numpy())
+    local_exc_sigmas.append(local_exc_sigma.numpy())
+    mid_range_inhibition_heights.append(mid_range_inh_height.numpy())
+    mid_range_inhibition_sigmas.append(mid_range_inh_sigma.numpy())
 
-    trainable_vars = [resting_level, global_inhibition, local_exc, mid_range_inh]
+    trainable_vars = [resting_level, global_inhibition, local_exc_height, local_exc_sigma, mid_range_inh_height, mid_range_inh_sigma]
     gradients = tape.gradient(ls, trainable_vars)
     optimizer.apply_gradients(zip(gradients, trainable_vars))
 
-    if epoch % 1 == 0:
-        col = epoch//1
+    if epoch % 10 == 0:
+        col = epoch // 10
         time_invariant_variable_variant_tensors = dff_simulator.compute_time_invariant_variable_variant_tensors()
         values_history = simulation_call(0, dff_simulator.initial_values, time_invariant_variable_variant_tensors)
         final_activation_axis[col].set_title(f"ep. {epoch}")
-        final_activation_axis[col].set_ylim(-5, 5)
+        final_activation_axis[col].set_ylim(-15, 15)
         final_activation_axis[col].plot(values_history[-1][1])
+
+col = num_epochs // 10
+time_invariant_variable_variant_tensors = dff_simulator.compute_time_invariant_variable_variant_tensors()
+values_history = simulation_call(0, dff_simulator.initial_values, time_invariant_variable_variant_tensors)
+final_activation_axis[col].set_title(f"ep. {num_epochs}")
+final_activation_axis[col].set_ylim(-15, 15)
+final_activation_axis[col].plot(values_history[-1][1])
+
+final_activation_figure.show()
+final_activation_figure.savefig("final_activation.png")
 
 
 time_invariant_variable_variant_tensors = dff_simulator.compute_time_invariant_variable_variant_tensors()
@@ -224,6 +245,8 @@ for t in range(num_time_steps+1):
     axis[t//skip].set_ylim(-15, 15)
     axis[t//skip].plot(values_history[t][1])
     axis[t//skip].plot(values_history[t][0])
+plt.savefig("time_course.png")
+
 plt.show()
 
 
@@ -235,29 +258,48 @@ plt.figure(figsize=(10,2))
 plt.title("Loss")
 plt.xlabel("Epoch")
 plt.plot(losses)
+plt.savefig("loss.png")
 plt.show()
 
 plt.figure(figsize=(10,2))
 plt.title("Resting level")
 plt.xlabel("Epoch")
 plt.plot(resting_levels)
+plt.savefig("resting_level.png")
 plt.show()
 
 plt.figure(figsize=(10,2))
 plt.title("Global inhibition")
 plt.xlabel("Epoch")
 plt.plot(global_inhibitions)
+plt.savefig("global_inhibition.png")
 plt.show()
 
 plt.figure(figsize=(10,2))
-plt.title("Local excitation")
+plt.title("Local excitation height")
 plt.xlabel("Epoch")
-plt.plot(local_excitations)
+plt.plot(local_exc_heights)
+plt.savefig("local_exc_height.png")
 plt.show()
 
 plt.figure(figsize=(10,2))
-plt.title("Mid-range inhibition")
+plt.title("Local excitation sigma")
 plt.xlabel("Epoch")
-plt.plot(mid_range_inhibitions)
+plt.plot(local_exc_sigmas)
+plt.savefig("local_exc_sigma.png")
+plt.show()
+
+plt.figure(figsize=(10,2))
+plt.title("Mid-range inhibition height")
+plt.xlabel("Epoch")
+plt.plot(mid_range_inhibition_heights)
+plt.savefig("mid_range_inh_height.png")
+plt.show()
+
+plt.figure(figsize=(10,2))
+plt.title("Mid-range inhibition sigma")
+plt.xlabel("Epoch")
+plt.plot(mid_range_inhibition_sigmas)
+plt.savefig("mid_range_inh_sigma.png")
 plt.show()
 

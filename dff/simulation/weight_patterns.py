@@ -36,11 +36,7 @@ def compute_weight_pattern_tensor(weight_pattern_config, positional_grid):
     return result
 
 
-def weight_pattern_config_from_dfpy_weight_pattern(dfpy_weight_pattern, domain, shape):
-    #domain = tf.convert_to_tensor([[dimension.lower, dimension.upper] for dimension in dfpy_field.dimensions],
-    #                              dtype=tf.float32)
-    #shape = tf.convert_to_tensor([dimension.size for dimension in dfpy_field.dimensions], dtype=tf.int32)
-
+def weight_pattern_config_from_dfpy_weight_pattern(dfpy_weight_pattern, domain, shape, previous_summand_sigmas=None):
     weight_pattern_config = {
         "shape": shape,
         "domain": domain
@@ -48,20 +44,29 @@ def weight_pattern_config_from_dfpy_weight_pattern(dfpy_weight_pattern, domain, 
 
     if isinstance(dfpy_weight_pattern, GaussWeightPattern):
         weight_pattern_config["type"] = "GaussWeightPattern"
-        weight_pattern_config["sigmas"] = tf.constant(dfpy_weight_pattern.sigmas)
+        if previous_summand_sigmas is None:
+            weight_pattern_config["sigmas"] = tf.Variable(dfpy_weight_pattern.sigmas, name=str(id(dfpy_weight_pattern)) + ".sigmas", trainable=True, constraint=lambda x: tf.math.maximum(0, x))
+        else:
+            weight_pattern_config["sigmas"] = tf.Variable(dfpy_weight_pattern.sigmas, name=str(id(dfpy_weight_pattern)) + ".sigmas", trainable=True, constraint=lambda x: tf.math.maximum(previous_summand_sigmas, x))
+
         if dfpy_weight_pattern.height >= 0:
-            height = tf.Variable(dfpy_weight_pattern.height, name="GaussWeightPattern.height", trainable=True, constraint=lambda x: tf.math.maximum(0, x))
+            height = tf.Variable(dfpy_weight_pattern.height, name=str(id(dfpy_weight_pattern)) + ".height", trainable=True, constraint=lambda x: tf.math.maximum(0, x))
         if dfpy_weight_pattern.height < 0:
-            height = tf.Variable(dfpy_weight_pattern.height, name="GaussWeightPattern.height", trainable=True, constraint=lambda x: tf.math.minimum(0, x))
+            height = tf.Variable(dfpy_weight_pattern.height, name=str(id(dfpy_weight_pattern)) + ".height", trainable=True, constraint=lambda x: tf.math.minimum(0, x))
         weight_pattern_config["height"] = height
         weight_pattern_config["mean"] = tf.constant(dfpy_weight_pattern.mean)
     elif isinstance(dfpy_weight_pattern, SumWeightPattern):
         weight_pattern_config["type"] = "SumWeightPattern"
         weight_pattern_config["summands"] = []
-        for summand in dfpy_weight_pattern.weight_patterns:
-            weight_pattern_config["summands"].append(
-                weight_pattern_config_from_dfpy_weight_pattern(summand, domain, shape)
-            )
+
+        for i in range(len(dfpy_weight_pattern.weight_patterns)):
+            summand = dfpy_weight_pattern.weight_patterns[i]
+            if i > 0:
+                previous_summand_sigmas = weight_pattern_config["summands"][i-1]["sigmas"]
+            else:
+                previous_summand_sigmas = None
+            summand_weight_pattern_config = weight_pattern_config_from_dfpy_weight_pattern(summand, domain, shape, previous_summand_sigmas)
+            weight_pattern_config["summands"].append(summand_weight_pattern_config)
     elif isinstance(dfpy_weight_pattern, RepeatedValueWeightPattern):
         weight_pattern_config["type"] = "RepeatedValueWeightPattern"
         weight_pattern_config["shape"] = dfpy_weight_pattern.shape
