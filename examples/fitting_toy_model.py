@@ -143,8 +143,8 @@ def loss():
     )
 
     # total_loss = loss_bumps
-    # total_loss = loss_peak
-    total_loss = loss_rt
+    total_loss = loss_peak
+    # total_loss = loss_rt
 
     return total_loss
 

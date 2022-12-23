@@ -109,6 +109,7 @@ def selective_peak_at_locations(activation_snapshot, peak_locations, radius, res
 
     return loss
 
+
 @tf.function
 def match_reaction_time(activation_snapshots, desired_reaction_time, window=None):
     if window is None:
@@ -123,6 +124,7 @@ def match_reaction_time(activation_snapshots, desired_reaction_time, window=None
     elued_max_activations_before_reaction_time = 1+tf.nn.elu(tf.convert_to_tensor(max_activations_before_reaction_time))
     elued_max_activations_after_reaction_time = 1+tf.nn.elu(-tf.convert_to_tensor(max_activations_after_reaction_time))
     return tf.reduce_sum(elued_max_activations_before_reaction_time) / (desired_reaction_time-lower_bound) + tf.reduce_sum(elued_max_activations_after_reaction_time) / (upper_bound - desired_reaction_time)
+
 
 @tf.function
 def loss():

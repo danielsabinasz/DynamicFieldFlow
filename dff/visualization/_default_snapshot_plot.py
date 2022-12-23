@@ -1,4 +1,5 @@
-import matplotlib.pyplot as plt
+
+from dff.visualization.plot3d import Plot3D
 from dfpy import TimedGate, CustomInput, TimedCustomInput
 
 import dff.visualization
@@ -27,6 +28,11 @@ def default_snapshot_plot(step):
                 plot.value_range = [step.resting_level, -step.resting_level]
             if isinstance(step, GaussInput):
                 plot.value_range = [0, step.height]
+            return plot
+        elif ndim == 3:
+            plot = Plot3D(step)
+            if isinstance(step, Field):
+                plot.value_range = [step.resting_level, -step.resting_level]
             return plot
 
     elif isinstance(step, Image):

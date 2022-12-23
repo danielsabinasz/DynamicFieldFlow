@@ -2,7 +2,8 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from dff.simulation.util import compute_positional_grid
-from dfpy import SumWeightPattern, GaussWeightPattern, RepeatedValueWeightPattern, CustomWeightPattern
+from dfpy import SumWeightPattern, GaussWeightPattern, RepeatedValueWeightPattern, CustomWeightPattern, \
+    RepeatWeightPattern
 
 
 def compute_weight_pattern_tensor(weight_pattern_config, positional_grid):
@@ -22,6 +23,11 @@ def compute_weight_pattern_tensor(weight_pattern_config, positional_grid):
         summands = weight_pattern_config["summands"]
         tensors = [compute_weight_pattern_tensor(summand, positional_grid) for summand in summands]
         result = tf.add_n(tensors)
+    elif weight_pattern_config["type"] == "RepeatWeightPattern":
+        inner_weight_pattern_config = weight_pattern_config["weight_pattern"]
+        inner_weight_pattern_tensor = compute_weight_pattern_tensor(inner_weight_pattern_config, positional_grid[:,:,0,0:2])
+        num_repeats = weight_pattern_config["num_repeats"]
+        result = tf.repeat(tf.expand_dims(inner_weight_pattern_tensor, -1), num_repeats, axis=-1)
     elif weight_pattern_config["type"] == "RepeatedValueWeightPattern":
         result = tf.ones(weight_pattern_config["shape"])*weight_pattern_config["value"]
     elif weight_pattern_config["type"] == "CustomWeightPattern":
@@ -67,6 +73,10 @@ def weight_pattern_config_from_dfpy_weight_pattern(dfpy_weight_pattern, domain, 
                 previous_summand_sigmas = None
             summand_weight_pattern_config = weight_pattern_config_from_dfpy_weight_pattern(summand, domain, shape, previous_summand_sigmas)
             weight_pattern_config["summands"].append(summand_weight_pattern_config)
+    elif isinstance(dfpy_weight_pattern, RepeatWeightPattern):
+        weight_pattern_config["type"] = "RepeatWeightPattern"
+        weight_pattern_config["weight_pattern"] = weight_pattern_config_from_dfpy_weight_pattern(dfpy_weight_pattern.weight_pattern, domain, shape)
+        weight_pattern_config["num_repeats"] = dfpy_weight_pattern.num_repeats
     elif isinstance(dfpy_weight_pattern, RepeatedValueWeightPattern):
         weight_pattern_config["type"] = "RepeatedValueWeightPattern"
         weight_pattern_config["shape"] = dfpy_weight_pattern.shape
@@ -104,7 +114,7 @@ def compute_kernel_gauss_tensor(shape, domain, mean, sigmas, height):
     return compute_kernel_gauss_tensor_with_positional_grid(mean, sigmas, height, positional_grid)
 
 
-@tf.function
+#@tf.function
 def compute_kernel_gauss_tensor_with_positional_grid(mean, sigmas, height, positional_grid):
     """Computes a tensor for the Gauss kernel.
 
@@ -116,7 +126,7 @@ def compute_kernel_gauss_tensor_with_positional_grid(mean, sigmas, height, posit
     """
     # Define multivariate distribution over meshgrid
     mvn = tfp.distributions.MultivariateNormalDiag(
-        loc=tf.reverse(mean, [0]),
+        loc=mean,
         scale_diag=sigmas)
 
     unnormalized = mvn.prob(positional_grid)

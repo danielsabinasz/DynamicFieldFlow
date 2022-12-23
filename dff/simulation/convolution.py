@@ -1,13 +1,14 @@
 import logging
 
 import tensorflow as tf
+from dff.simulation.weight_patterns import compute_kernel_gauss_tensor
 
 
 #@tf.function(input_signature=(
 #    tf.TensorSpec(shape=(None,), dtype=tf.float32),
 #    tf.TensorSpec(shape=(None,), dtype=tf.float32)
 #))
-@tf.function
+#@tf.function
 def convolve(x, w):
     """Performs a convolution
 
@@ -42,6 +43,15 @@ def convolve(x, w):
         conv = tf.reshape(conv, [x_shape[0], x_shape[1], x_shape[2]])
     else:
         raise Exception("Unsupported rank " + str(rank))
+
+    """import matplotlib.pyplot as plt
+    plt.imshow(x[0,:,:,0])
+    plt.show()
+    plt.imshow(w.numpy()[:,:,0,0,0])
+    plt.colorbar()
+    plt.show()
+    plt.imshow(conv[:,:,0])
+    plt.show()"""
 
     return conv
 
