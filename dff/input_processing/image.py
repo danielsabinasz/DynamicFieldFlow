@@ -5,7 +5,7 @@ from dff.simulation.weight_patterns import compute_kernel_gauss_tensor
 from dff.simulation.convolution import convolve
 
 
-def create_hue_space_perception_field_input(field, filename):
+def create_color_space_perception_field_input(field, filename):
     shape = field.shape()
     domain = field.domain()
 
@@ -16,6 +16,8 @@ def create_hue_space_perception_field_input(field, filename):
     image = image.convert("HSV")
 
     image_as_array = tf.keras.utils.img_to_array(image)
+    image_as_array = tf.transpose(image_as_array, [1,0,2])
+    image_as_array = tf.reverse(image_as_array, [1])
     hue_map = image_as_array[:,:,0]
     saturation_map = image_as_array[:,:,1]
 

@@ -1,1 +1,1 @@
-These images are provided here for convenience
+These images are owned by the Chair Theory of Cognitive Systems, Institut für Neuroinformatik, Ruhr-Universität Bochum.

@@ -33,6 +33,7 @@ def default_snapshot_plot(step):
             plot = Plot3D(step)
             if isinstance(step, Field):
                 plot.value_range = [step.resting_level, -step.resting_level]
+            plot.dimensions = step.dimensions
             return plot
 
     elif isinstance(step, Image):
