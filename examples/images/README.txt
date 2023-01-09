@@ -1,1 +1,2 @@
-These images are owned by the Chair Theory of Cognitive Systems, Institut für Neuroinformatik, Ruhr-Universität Bochum.
+These images have been created by Jonas Lins at the Institut für Neuroinformatik (ini.rub.de)
+and are part of the public domain. Thanks!
