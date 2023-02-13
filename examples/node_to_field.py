@@ -9,7 +9,7 @@ field = Field(
     dimensions=[Dimension(-25, 25, 51)],
     resting_level=-5.0,
     interaction_kernel=GaussWeightPattern(height=1.0, sigmas=(3.0,)),
-    global_inhibition=-1.2,
+    global_inhibition=0.0,
     noise_strength=0.2
 )
 
