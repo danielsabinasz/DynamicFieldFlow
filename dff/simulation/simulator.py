@@ -132,6 +132,8 @@ class Simulator:
             self._rolled_simulation_call = None
 
         step_index = self._neural_structure.steps.index(step)
+        self._initial_values[step_index].assign(self.compute_initial_value_for_step(step_index, step))
+
         self._time_invariant_variable_variant_tensors_by_step_index[step_index] =\
             self.compute_time_invariant_variable_variant_tensors_for_step(step, step_index)
         self._values[step_index].assign(self.compute_initial_value_for_step(step_index, step))
