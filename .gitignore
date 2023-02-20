@@ -5,3 +5,8 @@ dfpy
 DynamicFieldFlow.egg-info
 analogy.ipynb
 .ipynb_checkpoints
+dff/__pycache__
+dff/input_processing/__pycache__
+dff/simulation/__pycache__
+dff/simulation/steps/__pycache__
+dff/visualization/__pycache__

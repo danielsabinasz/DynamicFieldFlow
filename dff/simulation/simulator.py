@@ -132,6 +132,8 @@ class Simulator:
             self._rolled_simulation_call = None
 
         step_index = self._neural_structure.steps.index(step)
+        self._initial_values[step_index].assign(self.compute_initial_value_for_step(step_index, step))
+
         self._time_invariant_variable_variant_tensors_by_step_index[step_index] =\
             self.compute_time_invariant_variable_variant_tensors_for_step(step, step_index)
         self._values[step_index].assign(self.compute_initial_value_for_step(step_index, step))
@@ -144,7 +146,9 @@ class Simulator:
         self._time_invariant_variable_variant_tensors_by_step_index.append(
             self.compute_time_invariant_variable_variant_tensors_for_step(step, step_index)
         )
-        self._values.append(tf.Variable(self.compute_initial_value_for_step(step_index, step)))
+        initial_value = tf.Variable(self.compute_initial_value_for_step(step_index, step))
+        self._values.append(initial_value)
+        self._initial_values.append(initial_value)
         step.register_observer(self._handle_modified_step)
         self._simulation_calls_with_unrolled_time_steps = {}
         self._rolled_simulation_call = None
