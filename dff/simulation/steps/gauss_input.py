@@ -15,9 +15,9 @@ def gauss_input_prepare_constants(step):
 
 
 def gauss_input_prepare_variables(step):
-    height = tf.Variable(step.height)
-    mean = tf.Variable(step.mean)
-    sigmas = tf.Variable(step.sigmas)
+    height = tf.Variable(step.height, trainable=True)
+    mean = tf.Variable(step.mean, trainable=True)
+    sigmas = tf.Variable(step.sigmas, trainable=True)
     return {"height": height, "mean": mean, "sigmas": sigmas}
 
 
@@ -26,8 +26,8 @@ def gauss_input_prepare_time_and_variable_invariant_tensors(shape, domain):
 
     return positional_grid,
 
-def gauss_input_prepare_time_invariant_variable_variant_tensors(shape, domain, mean, sigmas, height, positional_grid):
-    """Prepares constants for the Gauss step.
+"""def gauss_input_prepare_time_invariant_variable_variant_tensors(shape, domain, mean, sigmas, height, positional_grid):
+    # Prepares constants for the Gauss step.
 
     :param Tensor shape: shape of the grid representation
     :param Tensor domain: domain over which the Gauss is defined
@@ -36,8 +36,10 @@ def gauss_input_prepare_time_invariant_variable_variant_tensors(shape, domain, m
     :param Tensor height: height of the Gauss
     :param Tensor positional_grid
     :return Tensor gauss_input_tensor: a computed tensor representation of the Gauss
-    """
 
     gauss_input_tensor = compute_kernel_gauss_tensor_with_positional_grid(mean, sigmas, height, positional_grid)
 
-    return gauss_input_tensor,
+    return gauss_input_tensor,"""
+
+def gauss_input_time_step(height, mean, sigmas, positional_grid):
+    return compute_kernel_gauss_tensor_with_positional_grid(mean, sigmas, height, positional_grid)

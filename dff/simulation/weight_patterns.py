@@ -113,7 +113,7 @@ def compute_kernel_gauss_tensor(shape, domain, mean, sigmas, height):
     return compute_kernel_gauss_tensor_with_positional_grid(mean, sigmas, height, positional_grid)
 
 
-#@tf.function
+@tf.function
 def compute_kernel_gauss_tensor_with_positional_grid(mean, sigmas, height, positional_grid):
     """Computes a tensor for the Gauss kernel.
 

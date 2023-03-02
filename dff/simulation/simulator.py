@@ -388,7 +388,10 @@ class Simulator:
         # GaussInput
         #
         if isinstance(step, GaussInput):
-            initial_value = time_invariant_variable_variant_tensors[0]
+            initial_value = steps.gauss_input.gauss_input_time_step(variables["height"],
+                                                                   variables["mean"],
+                                                                   variables["sigmas"],
+                                                                   time_and_variable_invariant_tensors[0])
 
         #
         # CustomInput
@@ -480,8 +483,10 @@ class Simulator:
             #    step.shape(), interaction_kernel_positional_grid, step.resting_level, interaction_kernel_weight_pattern_config
             #)
             tensors = []
+        else:
+            tensors = []
 
-        elif isinstance(step, GaussInput):
+        """elif isinstance(step, GaussInput):
             positional_grid = time_and_variable_invariant_tensors[0]
             tensors = steps.gauss_input.gauss_input_prepare_time_invariant_variable_variant_tensors(
                 constants["shape"],
@@ -490,10 +495,8 @@ class Simulator:
                 variables["sigmas"],
                 variables["height"],
                 positional_grid
-            )
+            )"""
 
-        else:
-            tensors = []
 
         return tensors
 

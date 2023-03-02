@@ -134,7 +134,7 @@ def simulate_unrolled_time_steps(num_time_steps, start_time, time_step_duration,
     for relative_time_step in range(num_time_steps):
         time_step = tf.cast(relative_time_step + start_time/time_step_duration, tf.int32)
         # TODO: Why does tracing here take twice as much time?
-        simulate_time_step(time_step, start_time, time_step_duration, steps, input_step_indices_by_step_index,
+        values = simulate_time_step(time_step, start_time, time_step_duration, steps, input_step_indices_by_step_index,
                            activation_function_types_by_step_index, activation_function_betas_by_step_index,
                            connection_kernel_weights_by_step_index, connection_pointwise_weights_by_step_index,
                            connection_contract_dimensions_by_step_index, connection_contraction_weights_by_step_index,
@@ -143,7 +143,6 @@ def simulate_unrolled_time_steps(num_time_steps, start_time, time_step_duration,
                            time_invariant_variable_variant_tensors_by_step_index,
                            values)
     return values
-
 
 @tf.function
 def simulate_unrolled_time_steps_with_history(num_time_steps, start_time, time_step_duration, steps, input_step_indices_by_step_index,
@@ -156,11 +155,11 @@ def simulate_unrolled_time_steps_with_history(num_time_steps, start_time, time_s
                                  values):
     logger.debug(f"trace simulate_unrolled_time_steps")
 
-    history = [[tf.identity(x) for x in values]]
+    history = [values]
     for time_step in range(num_time_steps):
         time_step_tensor = tf.constant(time_step)
         # TODO: Why does tracing here take twice as much time?
-        new_values = simulate_time_step(time_step_tensor, start_time, time_step_duration, steps, input_step_indices_by_step_index,
+        values = simulate_time_step(time_step_tensor, start_time, time_step_duration, steps, input_step_indices_by_step_index,
                            activation_function_types_by_step_index, activation_function_betas_by_step_index,
                            connection_kernel_weights_by_step_index, connection_pointwise_weights_by_step_index,
                            connection_contract_dimensions_by_step_index, connection_contraction_weights_by_step_index,
@@ -168,7 +167,7 @@ def simulate_unrolled_time_steps_with_history(num_time_steps, start_time, time_s
                            constants_by_step_index, variables_by_step_index, time_and_variable_invariant_tensors_by_step_index,
                            time_invariant_variable_variant_tensors_by_step_index,
                            values)
-        history.append(new_values)
+        history.append(values)
     return history
 
 
@@ -185,7 +184,7 @@ def simulate_rolled_time_steps(num_time_steps, start_time, time_step_duration, s
     logger.debug("trace simulate_rolled_time_steps") #, time, num_time_steps, time_step_duration, steps, connections_into_steps, step_constants, step_variables, time_and_variable_invariant_tensors_by_step_index, values
 
     for time_step in tf.range(num_time_steps):
-        simulate_time_step(time_step, start_time, time_step_duration, steps, input_step_indices_by_step_index,
+        values = simulate_time_step(time_step, start_time, time_step_duration, steps, input_step_indices_by_step_index,
                            activation_function_types_by_step_index, activation_function_betas_by_step_index,
                            connection_kernel_weights_by_step_index, connection_pointwise_weights_by_step_index,
                            connection_contract_dimensions_by_step_index, connection_contraction_weights_by_step_index,
@@ -283,9 +282,14 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
             elif isinstance(step, NoiseInput):
                 new_values[i] = dff.simulation.steps.noise_input.noise_input_time_step(time_step_duration, constants[0],
                                                                                        constants[1])
+            elif isinstance(step, GaussInput):
+                new_values[i] = dff.simulation.steps.gauss_input.gauss_input_time_step(variables[0],
+                                                                                       variables[1],
+                                                                                       variables[2],
+                                                                                       time_and_variable_invariant_tensors[0])
 
-    for i in range(0, len(steps)):
-        current_values[i].assign(new_values[i])
+    #for i in range(0, len(steps)):
+    #    current_values[i].assign(new_values[i])
 
     return new_values
 

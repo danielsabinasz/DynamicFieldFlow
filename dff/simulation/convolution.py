@@ -8,7 +8,7 @@ from dff.simulation.weight_patterns import compute_kernel_gauss_tensor
 #    tf.TensorSpec(shape=(None,), dtype=tf.float32),
 #    tf.TensorSpec(shape=(None,), dtype=tf.float32)
 #))
-#@tf.function
+@tf.function
 def convolve(x, w):
     """Performs a convolution
 
