@@ -122,16 +122,20 @@ class Simulator:
         self._neural_structure.register_add_connection_observer(self._handle_add_connection)
 
     def _handle_modified_step(self, step, changed_param):
+        step_index = self._neural_structure.steps.index(step)
+
         new_value = getattr(step, changed_param)
         if changed_param in self._variables[step]:
             self._variables[step][changed_param].assign(new_value)
-        elif changed_param == "interaction_kernel":
+        elif changed_param == "interaction_kernel" and isinstance(step, Field):
             self._variables[step]["interaction_kernel_weight_pattern_config"] = \
                 weight_pattern_config_from_dfpy_weight_pattern(new_value, step.domain(), step.shape())
+            self._variables_by_step_index[step_index][-1] = self._variables[step]["interaction_kernel_weight_pattern_config"]
             self._simulation_calls_with_unrolled_time_steps = {}
             self._rolled_simulation_call = None
+        else:
+            raise RuntimeError(f"Unrecognized changed_param '{changed_param}'")
 
-        step_index = self._neural_structure.steps.index(step)
         self._initial_values[step_index].assign(self.compute_initial_value_for_step(step_index, step))
 
         self._time_invariant_variable_variant_tensors_by_step_index[step_index] =\
