@@ -134,7 +134,7 @@ def simulate_unrolled_time_steps(num_time_steps, start_time, time_step_duration,
     for relative_time_step in range(num_time_steps):
         time_step = tf.cast(relative_time_step + start_time/time_step_duration, tf.int32)
         # TODO: Why does tracing here take twice as much time?
-        values = simulate_time_step(time_step, start_time, time_step_duration, steps, input_step_indices_by_step_index,
+        new_values = simulate_time_step(time_step, start_time, time_step_duration, steps, input_step_indices_by_step_index,
                            activation_function_types_by_step_index, activation_function_betas_by_step_index,
                            connection_kernel_weights_by_step_index, connection_pointwise_weights_by_step_index,
                            connection_contract_dimensions_by_step_index, connection_contraction_weights_by_step_index,
@@ -142,6 +142,10 @@ def simulate_unrolled_time_steps(num_time_steps, start_time, time_step_duration,
                            constants_by_step_index, variables_by_step_index, time_and_variable_invariant_tensors_by_step_index,
                            time_invariant_variable_variant_tensors_by_step_index,
                            values)
+
+        for i in range(0, len(steps)):
+            values[i].assign(new_values[i])
+
     return values
 
 @tf.function
