@@ -7,7 +7,7 @@ is_m1_mac = platform.startswith("mac") and "universal" in platform or platform =
 if is_m1_mac:
     install_requires = [
         'DynamicFieldPy',
-        'tensorflow-macos==2.8.0',
+        'tensorflow-macos==2.9.0',
         'matplotlib==3.5.1',
         'numpy==1.22.3',
         'tensorflow-probability==0.15.0',
