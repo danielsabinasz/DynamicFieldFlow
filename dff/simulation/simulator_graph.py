@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 import tensorflow as tf
 from dfpy.steps import *
 import dff.simulation.steps
-
+import matplotlib.pyplot as plt
+import time
 
 def create_unrolled_simulation_call(num_time_steps,
                                     time_step_duration,
@@ -64,6 +65,40 @@ def create_unrolled_simulation_call_with_history(num_time_steps,
     logger.info(f"Creating new unrolled simulation call with history with {num_time_steps} time steps per call")
     before = time.time()
     simulation_call = lambda start_time, values, time_invariant_variable_variant_tensors_by_step_index: simulate_unrolled_time_steps_with_history(num_time_steps, start_time,
+                                                                              time_step_duration,
+                                                                              steps,
+                                                                              input_step_indices_by_step_index,
+                                                                              activation_function_types_by_step_index,
+                                                                              activation_function_betas_by_step_index,
+                                                                              connection_kernel_weights_by_step_index,
+                                                                              connection_pointwise_weights_by_step_index,
+                                                                              connection_contract_dimensions_by_step_index,
+                                                                              connection_contraction_weights_by_step_index,
+                                                                              connection_expand_dimensions_by_step_index,
+                                                                              constants_by_step_index,
+                                                                              variables_by_step_index,
+                                                                              time_and_variable_invariant_tensors_by_step_index,
+                                                                              time_invariant_variable_variant_tensors_by_step_index,
+                                                                              values)
+    logger.debug("Done creating simulation call after " + str(time.time() - before) + " seconds")
+    return simulation_call
+
+def create_impromptu_simulation_call_with_history(num_time_steps,
+                                    time_step_duration,
+                                    steps,
+                                    input_step_indices_by_step_index,
+                                    activation_function_types_by_step_index,
+                                    activation_function_betas_by_step_index,
+                                    connection_kernel_weights_by_step_index,
+                                    connection_pointwise_weights_by_step_index,
+                                    connection_contract_dimensions_by_step_index,
+                                    connection_contraction_weights_by_step_index,
+                                    connection_expand_dimensions_by_step_index,
+                                    constants_by_step_index, variables_by_step_index,
+                                    time_and_variable_invariant_tensors_by_step_index):
+    logger.info(f"Creating new unrolled simulation call with history with {num_time_steps} time steps per call")
+    before = time.time()
+    simulation_call = lambda start_time, values, time_invariant_variable_variant_tensors_by_step_index: simulate_impromptu_time_steps_with_history(num_time_steps, start_time,
                                                                               time_step_duration,
                                                                               steps,
                                                                               input_step_indices_by_step_index,
@@ -175,6 +210,33 @@ def simulate_unrolled_time_steps_with_history(num_time_steps, start_time, time_s
     return history
 
 
+def simulate_impromptu_time_steps_with_history(num_time_steps, start_time, time_step_duration, steps, input_step_indices_by_step_index,
+                                 activation_function_types_by_step_index, activation_function_betas_by_step_index,
+                                 connection_kernel_weights_by_step_index, connection_pointwise_weights_by_step_index,
+                                 connection_contract_dimensions_by_step_index, connection_contraction_weights_by_step_index,
+                                 connection_expand_dimensions_by_step_index, constants_by_step_index,
+                                 variables_by_step_index, time_and_variable_invariant_tensors_by_step_index,
+                                 time_invariant_variable_variant_tensors_by_step_index,
+                                 values):
+    logger.debug(f"trace simulate_unrolled_time_steps")
+
+    history = [values]
+    for time_step in range(num_time_steps):
+        time_step_tensor = tf.constant(time_step)
+        # TODO: Why does tracing here take twice as much time?
+        values = simulate_time_step(time_step_tensor, start_time, time_step_duration, steps, input_step_indices_by_step_index,
+                           activation_function_types_by_step_index, activation_function_betas_by_step_index,
+                           connection_kernel_weights_by_step_index, connection_pointwise_weights_by_step_index,
+                           connection_contract_dimensions_by_step_index, connection_contraction_weights_by_step_index,
+                           connection_expand_dimensions_by_step_index,
+                           constants_by_step_index, variables_by_step_index, time_and_variable_invariant_tensors_by_step_index,
+                           time_invariant_variable_variant_tensors_by_step_index,
+                           values)
+        history.append(values)
+    return history
+
+
+
 @tf.function
 def simulate_rolled_time_steps(num_time_steps, start_time, time_step_duration, steps, input_step_indices_by_step_index,
                                activation_function_types_by_step_index, activation_function_betas_by_step_index,
@@ -208,6 +270,7 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
                        variables_by_step_index, time_and_variable_invariant_tensors_by_step_index,
                        time_invariant_variable_variant_tensors_by_step_index, current_values):
     logger.debug(f"trace simulate_time_step")
+
     #before = time.time()
     # TODO see if performance can be improved by not creating a copy here
     # e.g., just an empty list, with or without specification of size, content shapes, ...
@@ -233,12 +296,16 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
                 input_sum = tf.zeros(shape=step_shape)
             else:
                 input_steps_current_values = get_input_steps_current_values(input_steps_indices, current_values)
+                #if i == 0:
+                #    before = time.time()
                 input_sum = get_input_sum(input_steps_activation_function_types, input_steps_activation_function_betas,
                                           input_steps_connection_kernel_weights,
                                           input_steps_connection_pointwise_weights, input_steps_contract_dimensions,
                                           input_steps_contraction_weights,
                                           input_steps_expand_dimensions,
-                                          input_steps_current_values, step_shape)
+                                          input_steps_current_values, step_shape, i)
+                #if i == 0:
+                #    print("input sum", time.time()-before)
 
 
             if isinstance(step, TimedBoost):
@@ -257,6 +324,7 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
             elif isinstance(step, Field):
                 #resting_level_tensor = time_invariant_variable_variant_tensors[0] TODO performance
                 #lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors[1] TODO performance
+
                 resting_level_tensor = tf.ones(tuple([int(x) for x in constants[1]])) * variables[0]
                 lateral_interaction_weight_pattern_tensor = compute_weight_pattern_tensor(variables[5],
                                                                                               time_and_variable_invariant_tensors[1])
@@ -292,6 +360,7 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
                                                                                        variables[2],
                                                                                        time_and_variable_invariant_tensors[0])
 
+
     #for i in range(0, len(steps)):
     #    current_values[i].assign(new_values[i])
 
@@ -299,21 +368,15 @@ def simulate_time_step(time_step, start_time, time_step_duration, steps, input_s
 
 
 @tf.function
-def compute_output(input, activation_function_type, beta):
-    logger.debug(f"trace apply_projection {input} {beta}")
-
-    if activation_function_type == 1:
-        input = tf.math.sigmoid(tf.multiply(beta, input))
-
-    return input
-
-
-@tf.function
 def get_input_sum(input_steps_activation_function_types, input_steps_activation_function_betas,
                   input_steps_connection_kernel_weights, input_steps_connection_pointwise_weights,
                   input_steps_contract_dimensions, input_steps_contraction_weights, input_steps_expand_dimensions,
-                  input_steps_values, step_shape):
+                  input_steps_values, step_shape, i):
     logger.debug(f"trace get_input_sum {input_steps_activation_function_betas} {input_steps_connection_kernel_weights} {input_steps_connection_pointwise_weights} {input_steps_contract_dimensions} {input_steps_contraction_weights} {input_steps_expand_dimensions} {input_steps_values} {step_shape}")
+
+    if i == 0:
+        before = time.time()
+        before_all = time.time()
 
     # Handle the first incoming connection
     activation_function_type = input_steps_activation_function_types[0]
@@ -324,19 +387,57 @@ def get_input_sum(input_steps_activation_function_types, input_steps_activation_
     connection_contraction_weights = input_steps_contraction_weights[0]
     connection_expand_dimensions = input_steps_expand_dimensions[0]
 
+
     input = input_steps_values[0]
     if tf.rank(input) == 0:
         input = tf.ones(step_shape) * input
 
-    input = compute_output(input, activation_function_type, beta)
+
+    if activation_function_type == 1:
+        input = tf.math.sigmoid(tf.multiply(beta, input))
+
     if connection_contract_dimensions is not None and len(connection_contract_dimensions) > 0:
-        input = contract(input, connection_contract_dimensions, connection_contraction_weights)
+
+        # Contract
+        if connection_contraction_weights is not None:
+            input = tf.multiply(input, connection_contraction_weights)
+        for i in range(len(connection_contract_dimensions)):
+            input = tf.reduce_sum(input, axis=connection_contract_dimensions[i])
+
     elif connection_expand_dimensions is not None and len(connection_expand_dimensions) > 0:
-        input = expand(input, connection_expand_dimensions, step_shape)
+
+        # Expand
+        for i in range(len(connection_expand_dimensions)):
+            dim = connection_expand_dimensions[i]
+            dimension_length = step_shape[dim]
+            input_shape = tf.shape(input)
+            input = tf.repeat(input, [dimension_length])
+            new_shape = tf.concat([input_shape, [dimension_length]], axis=0)
+            input = tf.reshape(input, new_shape)
+
     if connection_pointwise_weights is not None:
         input = tf.math.multiply(connection_pointwise_weights, input)
+
     if connection_kernel_weights is not None:
-        input = convolve(connection_kernel_weights, input)
+        """fig, ax = plt.subplots(1, 1)
+        plt.plot(input)
+        ax.set_ylim([-10, 10])
+        plt.title("Input")
+        plt.show()
+
+        fig, ax = plt.subplots(1, 1)
+        plt.plot(connection_kernel_weights)
+        ax.set_ylim([-10, 10])
+        plt.title("Kernel")
+        plt.show()"""
+
+        input = convolve(input, connection_kernel_weights)
+        #tf.print("conv kernel weights_", connection_kernel_weights.shape, input.shape)
+        """fig, ax = plt.subplots(1, 1)
+        plt.plot(convolve(connection_kernel_weights, input))
+        ax.set_ylim([-10, 10])
+        plt.title("Output")
+        plt.show()"""
 
     input_sum = input
 
@@ -352,50 +453,23 @@ def get_input_sum(input_steps_activation_function_types, input_steps_activation_
         connection_contraction_weights = input_steps_contraction_weights[j]
         connection_expand_dimensions = input_steps_expand_dimensions[j]
 
-        input = compute_output(input, activation_function_type, beta)
+        if activation_function_type == 1:
+            input = tf.math.sigmoid(tf.multiply(beta, input))
+
         if len(input.shape) > len(step_shape) and connection_expand_dimensions is not None:
             input = contract(input, connection_contract_dimensions, connection_contraction_weights)
         elif len(input.shape) < len(step_shape) and connection_expand_dimensions is not None:
             input = expand(input, connection_expand_dimensions, step_shape)
         if connection_pointwise_weights is not None:
             input = tf.math.multiply(connection_pointwise_weights, input)
+
         if connection_kernel_weights is not None:
-            input = convolve(connection_kernel_weights, input)
+            input = convolve(input, connection_kernel_weights)
+            #tf.print("conv kernel weights", input.shape, connection_kernel_weights.shape)
 
         input_sum = tf.add(input_sum, input)
 
     return input_sum
-
-
-@tf.function
-def contract(input, contract_dimensions, contraction_weights):
-    logger.debug(f"trace contract {input} {contract_dimensions} {contraction_weights}")
-    if contraction_weights is not None:
-        input = tf.multiply(input, contraction_weights)
-
-    for i in range(len(contract_dimensions)):
-        input = tf.reduce_sum(input, axis=contract_dimensions[i])
-    return input
-
-
-@tf.function
-def expand(input, expand_dimensions, output_shape):
-    logger.debug(f"trace expand {input} {expand_dimensions} {output_shape}")
-    for i in range(len(expand_dimensions)):
-        dim = expand_dimensions[i]
-        dimension_length = output_shape[dim]
-        input_shape = tf.shape(input)
-        input = tf.repeat(input, [dimension_length])
-        new_shape = tf.concat([input_shape, [dimension_length]], axis=0)
-        input = tf.reshape(input, new_shape)
-    return input
-
-
-#get_input_sum_1d = tf.function(input_signature=(
-#    tf.TensorSpec(shape=(None,), dtype=tf.float32),
-#    tf.TensorSpec(shape=(None,), dtype=tf.float32),
-#    tf.TensorSpec(shape=(None,None), dtype=tf.float32),
-#))(get_input_sum)
 
 
 def get_input_steps_current_values(input_step_indices, current_values):

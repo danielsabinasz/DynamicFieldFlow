@@ -1,6 +1,6 @@
 
 from dff.visualization.plot3d import Plot3D
-from dfpy import TimedGate, CustomInput, TimedCustomInput
+from dfpy import TimedGate, CustomInput, TimedCustomInput, NoiseInput
 
 import dff.visualization
 from dff.visualization.plot0d import Plot0D
@@ -16,7 +16,7 @@ def default_snapshot_plot(step):
     :param step: the step to visualize
     """
 
-    if isinstance(step, Field) or isinstance(step, GaussInput) or isinstance(step, CustomInput) or isinstance(step, TimedGate) or isinstance(step, TimedCustomInput):
+    if isinstance(step, Field) or isinstance(step, GaussInput) or isinstance(step, CustomInput) or isinstance(step, TimedGate) or isinstance(step, TimedCustomInput) or isinstance(step, NoiseInput):
 
         ndim = len(step.dimensions)
 

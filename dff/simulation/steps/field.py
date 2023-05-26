@@ -47,7 +47,7 @@ def field_prepare_variables(step):
             "interaction_kernel_weight_pattern_config": interaction_kernel_weight_pattern_config}
 
 
-def field_prepare_time_and_variable_invariant_tensors(shape, domain):
+def field_prepare_time_and_variable_invariant_tensors(step, shape, domain):
     positional_grid = compute_positional_grid(shape, domain)
 
     kernel_domain = []
@@ -58,7 +58,17 @@ def field_prepare_time_and_variable_invariant_tensors(shape, domain):
         kernel_domain.append([
             -rng/2, rng/2
         ])
+
+
     interaction_kernel_positional_grid = compute_positional_grid(shape, kernel_domain)
+
+
+    # Clipping
+    if step.interaction_kernel is not None:
+        rng = step.interaction_kernel.range()
+        if rng is not None:
+            w = shape[0]
+            interaction_kernel_positional_grid = interaction_kernel_positional_grid[w//2-rng[1]:w//2+rng[0]+1]
 
     return positional_grid, interaction_kernel_positional_grid
 
@@ -71,6 +81,7 @@ def field_compute_time_invariant_variable_variant_tensors(shape, interaction_ker
                                                                               interaction_kernel_positional_grid)
     return resting_level_tensor, interaction_kernel_weight_pattern_tensor
 
+import matplotlib.pyplot as plt
 
 @tf.function
 def field_time_step(time_step_duration, shape, bin_size, time_scale, sigmoid_beta,
@@ -99,6 +110,7 @@ def field_time_step(time_step_duration, shape, bin_size, time_scale, sigmoid_bet
     global_inhibition_result = tf.ones(shape) * global_inhibition * tf.reduce_sum(output)
     noise_term = tf.multiply(tf.multiply(tf.sqrt(time_step_duration), noise_strength), tf.random.normal(shape))
     conv_result = convolve(output, interaction_kernel) * bin_size
+    #tf.print("conv lat", output.shape, interaction_kernel.shape)
     sum = tf.add_n([minus_u, resting_level_tensor, input, conv_result, global_inhibition_result, noise_term])
 
     rate_of_change = tf.divide(sum, time_scale)

@@ -9,7 +9,7 @@ from dfpy import Step
 class Plot1D(Plot):
     def __init__(self, step: Step):
         super().__init__(step)
-        figure, axes = plt.subplots(figsize=(3,3))
+        figure, axes = plt.subplots()
         axes.set_title(step.name)
         self._figure = figure
         self._axes = axes

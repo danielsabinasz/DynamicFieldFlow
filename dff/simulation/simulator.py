@@ -8,7 +8,7 @@ from dff.simulation.weight_patterns import compute_weight_pattern_tensor, weight
 from dfpy.activation_function import Sigmoid, Identity
 
 from dff.simulation.simulator_graph import create_unrolled_simulation_call, create_rolled_simulation_call, \
-    create_unrolled_simulation_call_with_history
+    create_unrolled_simulation_call_with_history, create_impromptu_simulation_call_with_history
 
 logger = logging.getLogger(__name__)
 
@@ -340,6 +340,7 @@ class Simulator:
             # Should take ~0.026
             time_and_variable_invariant_tensors = steps.field\
                 .field_prepare_time_and_variable_invariant_tensors(
+                    step,
                     constants["shape"],
                     constants["domain"]
                 )
@@ -480,27 +481,9 @@ class Simulator:
         time_and_variable_invariant_tensors = self._time_and_variable_invariant_tensors[step]
 
         if isinstance(step, Field):
-            #positional_grid = time_and_variable_invariant_tensors[0]
-            #interaction_kernel_positional_grid = time_and_variable_invariant_tensors[1]
-            #interaction_kernel_weight_pattern_config = variables["interaction_kernel_weight_pattern_config"]
-            #tensors = steps.field.field_compute_time_invariant_variable_variant_tensors(
-            #    step.shape(), interaction_kernel_positional_grid, step.resting_level, interaction_kernel_weight_pattern_config
-            #)
             tensors = []
         else:
             tensors = []
-
-        """elif isinstance(step, GaussInput):
-            positional_grid = time_and_variable_invariant_tensors[0]
-            tensors = steps.gauss_input.gauss_input_prepare_time_invariant_variable_variant_tensors(
-                constants["shape"],
-                constants["domain"],
-                variables["mean"],
-                variables["sigmas"],
-                variables["height"],
-                positional_grid
-            )"""
-
 
         return tensors
 
@@ -619,6 +602,12 @@ class Simulator:
                         kernel_domain = [[-rng / 2, rng / 2]]
                         kernel_positional_grid = compute_positional_grid(shape, kernel_domain)
 
+                        rng = connection.kernel_weights.range()
+                        if rng is not None:
+                            w = shape[0]
+                            kernel_positional_grid = kernel_positional_grid[
+                                                                 w // 2 - rng[1]:w // 2 + rng[0] + 1]
+
                         # TODO handle scalar case differently
                         kernel_weights = compute_weight_pattern_tensor(
                             weight_pattern_config_from_dfpy_weight_pattern(connection.kernel_weights, domain, shape),
@@ -645,7 +634,25 @@ class Simulator:
                     # Direct connection
                     activation_function_type = 2
                     beta = 0.0
-                    kernel_weights = None
+
+                    if connection.kernel_weights is not None:
+                        domain = step.domain()
+                        shape = step.shape()
+
+                        lower = domain[0][0]
+                        upper = domain[0][1]
+                        rng = upper - lower
+                        kernel_domain = [[-rng / 2, rng / 2]]
+                        kernel_positional_grid = compute_positional_grid(shape, kernel_domain)
+
+                        # TODO handle scalar case differently
+                        kernel_weights = compute_weight_pattern_tensor(
+                            weight_pattern_config_from_dfpy_weight_pattern(connection.kernel_weights, domain, shape),
+                            kernel_positional_grid
+                        )
+                    else:
+                        kernel_weights = None
+
                     pointwise_weights = None
 
                 input_step_indices.append(input_step_index)
@@ -716,6 +723,21 @@ class Simulator:
 
     def get_unrolled_simulation_call_with_history(self, num_time_steps):
         return create_unrolled_simulation_call_with_history(num_time_steps, self._time_step_duration,
+                                                self._neural_structure.steps,
+                                                self._input_step_indices_by_step_index,
+                                                self._activation_function_types_by_step_index,
+                                                self._activation_function_betas_by_step_index,
+                                                self._connection_kernel_weights_by_step_index,
+                                                self._connection_pointwise_weights_by_step_index,
+                                                self._connection_contract_dimensions_by_step_index,
+                                                self._connection_contraction_weights_by_step_index,
+                                                self._connection_expand_dimensions_by_step_index,
+                                                self._constants_by_step_index,
+                                                self._variables_by_step_index,
+                                                self._time_and_variable_invariant_tensors_by_step_index)
+
+    def get_impromptu_simulation_call_with_history(self, num_time_steps):
+        return create_impromptu_simulation_call_with_history(num_time_steps, self._time_step_duration,
                                                 self._neural_structure.steps,
                                                 self._input_step_indices_by_step_index,
                                                 self._activation_function_types_by_step_index,

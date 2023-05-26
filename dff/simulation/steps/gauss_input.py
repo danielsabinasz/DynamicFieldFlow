@@ -41,5 +41,6 @@ def gauss_input_prepare_time_and_variable_invariant_tensors(shape, domain):
 
     return gauss_input_tensor,"""
 
+@tf.function
 def gauss_input_time_step(height, mean, sigmas, positional_grid):
     return compute_kernel_gauss_tensor_with_positional_grid(mean, sigmas, height, positional_grid)

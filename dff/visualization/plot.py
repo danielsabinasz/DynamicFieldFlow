@@ -9,3 +9,7 @@ class Plot:
     @property
     def figure(self):
         return self._figure
+
+    @property
+    def axes(self):
+        return self._axes
