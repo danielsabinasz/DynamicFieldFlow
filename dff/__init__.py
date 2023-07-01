@@ -1,6 +1,6 @@
 import logging
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('matplotlib').setLevel(logging.ERROR)
 
 from dff.simulation.simulator import Simulator

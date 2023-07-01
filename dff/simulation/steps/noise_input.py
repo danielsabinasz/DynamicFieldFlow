@@ -4,7 +4,7 @@ import tensorflow as tf
 
 
 def noise_input_prepare_constants(step):
-    return {"shape": step.shape, "strength": step.strength}
+    return {}
 
 
 @tf.function

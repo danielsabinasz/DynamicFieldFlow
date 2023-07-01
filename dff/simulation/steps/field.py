@@ -59,9 +59,7 @@ def field_prepare_time_and_variable_invariant_tensors(step, shape, domain):
             -rng/2, rng/2
         ])
 
-
     interaction_kernel_positional_grid = compute_positional_grid(shape, kernel_domain)
-
 
     # Clipping
     if step.interaction_kernel is not None:
@@ -70,7 +68,7 @@ def field_prepare_time_and_variable_invariant_tensors(step, shape, domain):
             w = shape[0]
             interaction_kernel_positional_grid = interaction_kernel_positional_grid[w//2-rng[1]:w//2+rng[0]+1]
 
-    return positional_grid, interaction_kernel_positional_grid
+    return {"positional_grid": positional_grid, "interaction_kernel_positional_grid": interaction_kernel_positional_grid}
 
 # TODO performance
 @tf.function
@@ -79,7 +77,7 @@ def field_compute_time_invariant_variable_variant_tensors(shape, interaction_ker
     resting_level_tensor = tf.ones(tuple([int(x) for x in shape])) * resting_level
     interaction_kernel_weight_pattern_tensor = compute_weight_pattern_tensor(interaction_kernel_weight_pattern_config,
                                                                               interaction_kernel_positional_grid)
-    return resting_level_tensor, interaction_kernel_weight_pattern_tensor
+    return {"resting_level_tensor": resting_level_tensor, "interaction_kernel_weight_pattern_tensor": interaction_kernel_weight_pattern_tensor}
 
 import matplotlib.pyplot as plt
 
