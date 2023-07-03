@@ -59,7 +59,7 @@ def weight_pattern_config_from_dfpy_weight_pattern(dfpy_weight_pattern, domain, 
         if dfpy_weight_pattern.height < 0:
             height = tf.Variable(dfpy_weight_pattern.height, name=str(id(dfpy_weight_pattern)) + ".height", trainable=True, constraint=lambda x: tf.math.minimum(0, x))
         weight_pattern_config["height"] = height
-        weight_pattern_config["mean"] = tf.constant(dfpy_weight_pattern.mean)
+        weight_pattern_config["mean"] = tf.Variable(dfpy_weight_pattern.mean)
     elif isinstance(dfpy_weight_pattern, SumWeightPattern):
         weight_pattern_config["type"] = "SumWeightPattern"
         weight_pattern_config["summands"] = []
@@ -79,13 +79,13 @@ def weight_pattern_config_from_dfpy_weight_pattern(dfpy_weight_pattern, domain, 
     elif isinstance(dfpy_weight_pattern, RepeatedValueWeightPattern):
         weight_pattern_config["type"] = "RepeatedValueWeightPattern"
         weight_pattern_config["shape"] = dfpy_weight_pattern.shape
-        weight_pattern_config["value"] = float(dfpy_weight_pattern.value)
+        weight_pattern_config["value"] = tf.Variable(float(dfpy_weight_pattern.value))
     elif isinstance(dfpy_weight_pattern, CustomWeightPattern):
         weight_pattern_config["type"] = "CustomWeightPattern"
-        weight_pattern_config["pattern"] = tf.convert_to_tensor(dfpy_weight_pattern.pattern)
+        weight_pattern_config["pattern"] = tf.Variable(tf.convert_to_tensor(dfpy_weight_pattern.pattern))
     elif isinstance(dfpy_weight_pattern, float) or isinstance(dfpy_weight_pattern, int):
         weight_pattern_config["type"] = "ScalarWeightPattern"
-        weight_pattern_config["scalar"] = tf.convert_to_tensor(float(dfpy_weight_pattern))
+        weight_pattern_config["scalar"] = tf.Variable(tf.convert_to_tensor(float(dfpy_weight_pattern)))
     elif dfpy_weight_pattern is None:
         weight_pattern_config["type"] = None
     else:

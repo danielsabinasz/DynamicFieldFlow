@@ -128,10 +128,18 @@ class Simulator:
         if changed_param in self._variables[step]:
             self._variables[step][changed_param].assign(new_value)
         elif changed_param == "interaction_kernel" and isinstance(step, Field):
-            self._variables[step]["interaction_kernel_weight_pattern_config"] = \
-                weight_pattern_config_from_dfpy_weight_pattern(new_value, step.domain(), step.shape())
-            self._simulation_calls_with_unrolled_time_steps = {}
-            self._rolled_simulation_call = None
+            weight_pattern_config = weight_pattern_config_from_dfpy_weight_pattern(new_value, step.domain(), step.shape())
+            old_weight_pattern_config = self._variables[step]["interaction_kernel_weight_pattern_config"]
+            if weight_pattern_config["type"] == "GaussWeightPattern":
+                old_weight_pattern_config["sigmas"].assign(weight_pattern_config["sigmas"])
+                old_weight_pattern_config["height"].assign(weight_pattern_config["height"])
+            else:
+                raise RuntimeError("Cannot replace kernel by " + weight_pattern_config["type"] + " because this feature is not implemented yet. Please talk to daniel.sabinasz@ini.rub.de.")
+            #raise RuntimeError("Cannot replace the interaction kernel after building the computational graph. Please update the interaction kernel parameters instead.")
+            #self._variables[step]["interaction_kernel_weight_pattern_config"] = \
+            #    weight_pattern_config_from_dfpy_weight_pattern(new_value, step.domain(), step.shape())
+            #self._simulation_calls_with_unrolled_time_steps = {}
+            #self._rolled_simulation_call = None
         else:
             raise RuntimeError(f"Unrecognized changed_param '{changed_param}'")
 
