@@ -130,7 +130,6 @@ class Simulator:
         elif changed_param == "interaction_kernel" and isinstance(step, Field):
             self._variables[step]["interaction_kernel_weight_pattern_config"] = \
                 weight_pattern_config_from_dfpy_weight_pattern(new_value, step.domain(), step.shape())
-            self._variables_by_step_index[step_index][-1] = self._variables[step]["interaction_kernel_weight_pattern_config"]
             self._simulation_calls_with_unrolled_time_steps = {}
             self._rolled_simulation_call = None
         else:
@@ -148,7 +147,7 @@ class Simulator:
         self.prepare_transformed_types_for_tensorflow_efficiency()
         step_index = self._neural_structure.steps.index(step)
         self._time_invariant_variable_variant_tensors[step] = \
-            self.compute_time_invariant_variable_variant_tensors_for_step(step, step_index)
+            self.compute_time_invariant_variable_variant_tensors_for_step(step)
         initial_value = tf.Variable(self.compute_initial_value_for_step(step_index, step))
         self._values.append(initial_value)
         self._initial_values.append(initial_value)
