@@ -24,7 +24,7 @@ def gauss_input_prepare_variables(step):
 def gauss_input_prepare_time_and_variable_invariant_tensors(shape, domain):
     positional_grid = compute_positional_grid(shape, domain)
 
-    return positional_grid,
+    return {"positional_grid": positional_grid}
 
 """def gauss_input_prepare_time_invariant_variable_variant_tensors(shape, domain, mean, sigmas, height, positional_grid):
     # Prepares constants for the Gauss step.
