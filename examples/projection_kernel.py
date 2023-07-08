@@ -13,12 +13,12 @@ gauss = GaussInput(
 field = Field(
     dimensions=[Dimension(0, 50, 51)],
     resting_level=-5.0,
-    interaction_kernel=GaussWeightPattern(height=1.0, sigmas=(3.0,), field_size=51),
+    interaction_kernel=GaussWeightPattern(height=1.0, sigmas=(3.0,)),
     global_inhibition=-1.2,
     noise_strength=0.2
 )
 
-connect(gauss, field, GaussWeightPattern(height=3.0, sigmas=3.0, mean=0.0, field_size=51), activation_function=Sigmoid(beta=1))
+connect(gauss, field, GaussWeightPattern(height=3.0, sigmas=3.0, mean=0.0), activation_function=Sigmoid(beta=1))
 
 sim = Simulator()
 sim.simulate_until(1000)

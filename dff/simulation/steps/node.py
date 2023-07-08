@@ -8,11 +8,18 @@ def node_prepare_constants(step):
 
 
 def node_prepare_variables(step):
-    resting_level = tf.Variable(step.resting_level)
-    time_scale = tf.Variable(step.time_scale)
-    sigmoid_beta = tf.Variable(step.activation_function.beta)
-    self_excitation = tf.Variable(step.self_excitation)
-    noise_strength = tf.Variable(step.noise_strength)
+    if step.assignable:
+        resting_level = tf.Variable(step.resting_level, trainable=step.trainable)
+        time_scale = tf.Variable(step.time_scale, trainable=step.trainable)
+        sigmoid_beta = tf.Variable(step.activation_function.beta, trainable=step.trainable)
+        self_excitation = tf.Variable(step.self_excitation, trainable=step.trainable)
+        noise_strength = tf.Variable(step.noise_strength, trainable=step.trainable)
+    else:
+        resting_level = tf.constant(step.resting_level)
+        time_scale = tf.constant(step.time_scale)
+        sigmoid_beta = tf.constant(step.activation_function.beta)
+        self_excitation = tf.constant(step.self_excitation)
+        noise_strength = tf.constant(step.noise_strength)
     return {"resting_level": resting_level, "time_scale": time_scale,
             "sigmoid_beta": sigmoid_beta,
             "self_excitation": self_excitation, "noise_strength": noise_strength}

@@ -15,9 +15,14 @@ def gauss_input_prepare_constants(step):
 
 
 def gauss_input_prepare_variables(step):
-    height = tf.Variable(step.height, trainable=True)
-    mean = tf.Variable(step.mean, trainable=True)
-    sigmas = tf.Variable(step.sigmas, trainable=True)
+    if step.assignable:
+        height = tf.Variable(step.height, trainable=step.trainable)
+        mean = tf.Variable(step.mean, trainable=step.trainable)
+        sigmas = tf.Variable(step.sigmas, trainable=step.trainable)
+    else:
+        height = tf.constant(step.height)
+        mean = tf.constant(step.mean)
+        sigmas = tf.constant(step.sigmas)
     return {"height": height, "mean": mean, "sigmas": sigmas}
 
 

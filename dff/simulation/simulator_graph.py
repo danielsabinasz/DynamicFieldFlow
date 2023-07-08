@@ -26,7 +26,7 @@ def create_unrolled_simulation_call(simulator, num_time_steps, time_step_duratio
 def create_unrolled_simulation_call_with_history(simulator, num_time_steps, time_step_duration):
     logger.info(f"Creating new unrolled simulation call with history with {num_time_steps} time steps per call")
     before = time.time()
-    simulation_call = lambda start_time, values, time_invariant_variable_variant_tensors_by_step_index: simulate_unrolled_time_steps_with_history(simulator, num_time_steps, start_time,
+    simulation_call = lambda start_time, values: simulate_unrolled_time_steps_with_history(simulator, num_time_steps, start_time,
                                                                               time_step_duration,
                                                                               values)
     logger.debug("Done creating simulation call after " + str(time.time() - before) + " seconds")
@@ -35,7 +35,7 @@ def create_unrolled_simulation_call_with_history(simulator, num_time_steps, time
 def create_impromptu_simulation_call_with_history(simulator, num_time_steps, time_step_duration):
     logger.info(f"Creating new unrolled simulation call with history with {num_time_steps} time steps per call")
     before = time.time()
-    simulation_call = lambda start_time, values, time_invariant_variable_variant_tensors_by_step_index:\
+    simulation_call = lambda start_time, values:\
         simulate_impromptu_time_steps_with_history(simulator, num_time_steps, start_time, time_step_duration, values)
     logger.debug("Done creating simulation call after " + str(time.time() - before) + " seconds")
     return simulation_call
@@ -72,6 +72,23 @@ def simulate_unrolled_time_steps(simulator, num_time_steps, start_time, time_ste
 def simulate_unrolled_time_steps_with_history(simulator, num_time_steps, start_time, time_step_duration, values):
     logger.debug(f"trace simulate_unrolled_time_steps")
 
+
+    # Prepare cache of time-invariant variable-variant tensors
+    for i in range(0, len(simulator._neural_structure.steps)):
+        step = simulator._neural_structure.steps[i]
+        if not step.static and step.trainable:
+            constants = simulator._constants[step]
+            variables = simulator._variables[step]
+            time_invariant_variable_variant_tensors = simulator._time_invariant_variable_variant_tensors[step]
+            time_and_variable_invariant_tensors = simulator._time_and_variable_invariant_tensors[step]
+            resting_level_tensor = tf.ones(tuple([int(x) for x in constants["shape"]])) * variables["resting_level"]
+            lateral_interaction_weight_pattern_tensor = compute_weight_pattern_tensor(variables["interaction_kernel_weight_pattern_config"],
+                                                                                      time_and_variable_invariant_tensors["interaction_kernel_positional_grid"])
+            time_invariant_variable_variant_tensors[step] = {}
+            time_invariant_variable_variant_tensors[step]["resting_level_tensor"] = resting_level_tensor
+            time_invariant_variable_variant_tensors[step]["lateral_interaction_weight_pattern_tensor"] = lateral_interaction_weight_pattern_tensor
+
+
     history = [values]
     for time_step in range(num_time_steps):
         time_step_tensor = tf.constant(time_step)
@@ -103,7 +120,7 @@ def simulate_rolled_time_steps(simulator, num_time_steps, start_time, time_step_
 
 @tf.function
 def simulate_time_step(simulator, time_step, start_time, time_step_duration, current_values):
-    logger.debug(f"trace simulate_time_step")
+    #logger.debug(f"trace simulate_time_step")
 
     #before = time.time()
     # TODO see if performance can be improved by not creating a copy here
@@ -115,6 +132,7 @@ def simulate_time_step(simulator, time_step, start_time, time_step_duration, cur
             constants = simulator._constants[step]
             variables = simulator._variables[step]
             time_and_variable_invariant_tensors = simulator._time_and_variable_invariant_tensors[step]
+            time_invariant_variable_variant_tensors = simulator._time_invariant_variable_variant_tensors[step]
             step_shape = tf.shape(new_values[i])
 
             if len(simulator._neural_structure.connections_into_steps[i]) == 0:
@@ -137,12 +155,12 @@ def simulate_time_step(simulator, time_step, start_time, time_step_duration, cur
             elif isinstance(step, Boost):
                 new_values[i] = dff.simulation.steps.boost.boost_time_step(constants["value"])
             elif isinstance(step, Field):
-                #resting_level_tensor = time_invariant_variable_variant_tensors[0] TODO performance
-                #lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors[1] TODO performance
-
-                resting_level_tensor = tf.ones(tuple([int(x) for x in constants["shape"]])) * variables["resting_level"]
-                lateral_interaction_weight_pattern_tensor = compute_weight_pattern_tensor(variables["interaction_kernel_weight_pattern_config"],
-                                                                                              time_and_variable_invariant_tensors["interaction_kernel_positional_grid"])
+                if not step.trainable:
+                    resting_level_tensor = time_invariant_variable_variant_tensors["resting_level_tensor"]
+                    lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors["lateral_interaction_weight_pattern_tensor"]
+                else:
+                    resting_level_tensor = time_invariant_variable_variant_tensors[step]["resting_level_tensor"]
+                    lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors[step]["lateral_interaction_weight_pattern_tensor"]
 
                 new_values[i] = dff.simulation.steps.field.field_time_step(time_step_duration,
                                                                            constants["shape"],
@@ -190,6 +208,8 @@ def get_input_sum(simulator, input_steps_values, step_shape, i):
     connections = simulator._neural_structure.connections_into_steps[i]
     contraction_weights_by_connection = simulator._connection_contraction_weights[step]
     kernel_weights_by_connection = simulator._connection_kernel_weights[step]
+    kernel_weight_pattern_configs_by_connection = simulator._connection_kernel_weight_pattern_configs[step]
+    kernel_positional_grids_by_connection = simulator._connection_kernel_positional_grids[step]
     pointwise_weights_by_connection = simulator._connection_pointwise_weights[step]
 
 
@@ -225,8 +245,15 @@ def get_input_sum(simulator, input_steps_values, step_shape, i):
     if pointwise_weights_by_connection[0] is not None:
         input = tf.math.multiply(pointwise_weights_by_connection[0], input)
 
-    if kernel_weights_by_connection[0] is not None:
-        input = convolve(input, kernel_weights_by_connection[0])
+    # TODO Do this before the first time step
+    if connections[0].trainable:
+        if kernel_weight_pattern_configs_by_connection[0] is not None:
+            kernel_weights = compute_weight_pattern_tensor(kernel_weight_pattern_configs_by_connection[0], kernel_positional_grids_by_connection[0])
+            input = convolve(input, kernel_weights)
+    else:
+        if kernel_weights_by_connection[0] is not None:
+            input = convolve(input, kernel_weights_by_connection[0])
+
     input_sum = input
 
     # Iterate all other incoming connections
@@ -260,8 +287,14 @@ def get_input_sum(simulator, input_steps_values, step_shape, i):
         if pointwise_weights_by_connection[j] is not None:
             input = tf.math.multiply(pointwise_weights_by_connection[j], input)
 
-        if kernel_weights_by_connection[j] is not None:
-            input = convolve(input, kernel_weights_by_connection[j])
+        if connections[j].trainable:
+            if kernel_weight_pattern_configs_by_connection[j] is not None:
+                # TODO do this before the first time step
+                kernel_weights = compute_weight_pattern_tensor(kernel_weight_pattern_configs_by_connection[j], kernel_positional_grids_by_connection[j])
+                input = convolve(input, kernel_weights)
+        else:
+            if kernel_weights_by_connection[j] is not None:
+                input = convolve(input, kernel_weights_by_connection[j])
 
         input_sum = tf.add(input_sum, input)
 

@@ -10,7 +10,10 @@ def scalar_multiplication_prepare_constants(step):
 
 
 def scalar_multiplication_prepare_variables(step):
-    scalar = tf.Variable(step.scalar, constraint=lambda x : tf.math.maximum(x, 0.0))
+    if step.assignable:
+        scalar = tf.Variable(step.scalar, constraint=lambda x : tf.math.maximum(x, 0.0), trainable=step.trainable)
+    else:
+        scalar = tf.constant(step.scalar)
     return {"scalar": scalar}
 
 

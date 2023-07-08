@@ -107,7 +107,7 @@ class Simulator:
 
         self.prepare_constants_and_variables()
         self.prepare_time_and_variable_invariant_tensors()
-        self.prepare_transformed_types_for_tensorflow_efficiency()
+        self.prepare_connection_kernel_weights_tensors()
         self.prepare_time_invariant_variable_variant_tensors()
         self.prepare_initial_values()
         self.reset_time()
@@ -152,7 +152,7 @@ class Simulator:
     def _handle_add_step(self, step):
         self.prepare_constants_and_variables_for_step(step)
         self.prepare_time_and_variable_invariant_tensors_for_step(step)
-        self.prepare_transformed_types_for_tensorflow_efficiency()
+        self.prepare_connection_kernel_weights_tensors()
         step_index = self._neural_structure.steps.index(step)
         self._time_invariant_variable_variant_tensors[step] = \
             self.compute_time_invariant_variable_variant_tensors_for_step(step)
@@ -164,7 +164,7 @@ class Simulator:
         self._rolled_simulation_call = None
 
     def _handle_add_connection(self, connection):
-        self.prepare_transformed_types_for_tensorflow_efficiency()
+        self.prepare_connection_kernel_weights_tensors()
         self._simulation_calls_with_unrolled_time_steps = {}
         self._rolled_simulation_call = None
 
@@ -482,10 +482,17 @@ class Simulator:
         return tensors
 
     def compute_time_invariant_variable_variant_tensors_for_step(self, step):
+        variables = self._variables[step]
+        constants = self._constants[step]
+        time_and_variable_invariant_tensors = self._time_and_variable_invariant_tensors[step]
         if isinstance(step, Field):
-            tensors = []
+            tensors = {
+                "resting_level_tensor": tf.ones(tuple([int(x) for x in constants["shape"]])) * variables["resting_level"],
+                "lateral_interaction_weight_pattern_tensor": compute_weight_pattern_tensor(variables["interaction_kernel_weight_pattern_config"],
+                                                                                           time_and_variable_invariant_tensors["interaction_kernel_positional_grid"])
+            }
         else:
-            tensors = []
+            tensors = {}
 
         return tensors
 
@@ -544,23 +551,21 @@ class Simulator:
     def neural_structure(self):
         return self._neural_structure
 
-    def prepare_transformed_types_for_tensorflow_efficiency(self):
-        # Transform dictionaries into arrays suitable for passing them to a tf.function:
-        # - Indexing a dictionary by a step becomes indexing an array by the step index
-        # - Indexing a dictionary by a variable name becomes indexing an array by a variable index
-        # - Betas, synaptic patterns and connection types of incoming connections to a step are represented
-        #   in a list for that step
+    def prepare_connection_kernel_weights_tensors(self):
+        # Transform everything into TensorFlow tensors
 
-        self._time_and_variable_invariant_tensors_by_step_index = []
         self._connection_kernel_weights = {}
+        self._connection_kernel_weight_pattern_configs = {}
+        self._connection_kernel_positional_grids = {}
         self._connection_pointwise_weights = {}
         self._connection_contraction_weights = {}
 
         for i in range(len(self._neural_structure.steps)):
             step = self._neural_structure.steps[i]
-            time_and_variable_invariant_tensors = self._time_and_variable_invariant_tensors[step]
 
             connection_kernel_weights= []
+            connection_kernel_weight_pattern_configs = []
+            connection_kernel_positional_grids = []
             connection_pointwise_weights = []
             connection_contraction_weights = []
             connections_into_step = self._neural_structure.connections_into_steps[i]
@@ -587,12 +592,15 @@ class Simulator:
                                                                  w // 2 - rng[1]:w // 2 + rng[0] + 1]
 
                         # TODO handle scalar case differently
+                        kernel_weight_pattern_config = weight_pattern_config_from_dfpy_weight_pattern(connection.kernel_weights, domain, shape)
                         kernel_weights = compute_weight_pattern_tensor(
-                            weight_pattern_config_from_dfpy_weight_pattern(connection.kernel_weights, domain, shape),
+                            kernel_weight_pattern_config,
                             kernel_positional_grid
                         )
                     else:
                         kernel_weights = None
+                        kernel_weight_pattern_config = None
+                        kernel_positional_grid = None
 
                     if connection.pointwise_weights is not None:
                         if isinstance(step, Node):
@@ -620,16 +628,21 @@ class Simulator:
                         kernel_positional_grid = compute_positional_grid(shape, kernel_domain)
 
                         # TODO handle scalar case differently
+                        kernel_weight_pattern_config = weight_pattern_config_from_dfpy_weight_pattern(connection.kernel_weights, domain, shape)
                         kernel_weights = compute_weight_pattern_tensor(
-                            weight_pattern_config_from_dfpy_weight_pattern(connection.kernel_weights, domain, shape),
+                            kernel_weight_pattern_config,
                             kernel_positional_grid
                         )
                     else:
                         kernel_weights = None
+                        kernel_weight_pattern_config = None
+                        kernel_positional_grid = None
 
                     pointwise_weights = None
 
+                connection_kernel_weight_pattern_configs.append(kernel_weight_pattern_config)
                 connection_kernel_weights.append(kernel_weights)
+                connection_kernel_positional_grids.append(kernel_positional_grid)
                 connection_pointwise_weights.append(pointwise_weights)
                 if connection.contraction_weights is not None:
                     contraction_weights = tf.convert_to_tensor(connection.contraction_weights)
@@ -638,6 +651,8 @@ class Simulator:
                 connection_contraction_weights.append(contraction_weights)
 
             self._connection_kernel_weights[step] = connection_kernel_weights
+            self._connection_kernel_weight_pattern_configs[step] = connection_kernel_weight_pattern_configs
+            self._connection_kernel_positional_grids[step] = connection_kernel_positional_grids
             self._connection_pointwise_weights[step] = connection_pointwise_weights
             self._connection_contraction_weights[step] = connection_contraction_weights
 

@@ -3,7 +3,7 @@ from dfpy import connect, Field, GaussInput, Dimension, GaussWeightPattern, init
 from dff.visualization import default_snapshot_plot
 import time
 
-for x in range(500, 1010, 10):
+for x in range(500, 510, 10):
 
     gauss = GaussInput(
         dimensions=[Dimension(-x/2, x/2, x+1-x%2), Dimension(-x/2, x/2, x+1-x%2)],
@@ -31,7 +31,7 @@ for x in range(500, 1010, 10):
     simulator.simulate_time_steps(1, in_multiples_of=None, mode="single")
     time_before = time.time()
     simulator.simulate_time_steps(100, in_multiples_of=None, mode="single")
-    duration = time.time() - time_before
+    duration = (time.time() - time_before)/100.0
 
     print(x, "\t", 1000 * duration)
 
@@ -41,5 +41,3 @@ for x in range(500, 1010, 10):
         plot.figure.show()
 
     initialize_architecture()
-
-    break
