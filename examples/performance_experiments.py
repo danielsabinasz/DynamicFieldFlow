@@ -30,8 +30,8 @@ for x in range(500, 510, 10):
     simulator = Simulator(time_step_duration=10, default_simulation_call_type="largest")
     simulator.simulate_time_steps(1, in_multiples_of=None, mode="single")
     time_before = time.time()
-    simulator.simulate_time_steps(100, in_multiples_of=None, mode="single")
-    duration = (time.time() - time_before)/100.0
+    simulator.simulate_time_steps(1, in_multiples_of=None, mode="single")
+    duration = (time.time() - time_before)/1.0
 
     print(x, "\t", 1000 * duration)
 

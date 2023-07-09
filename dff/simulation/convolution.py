@@ -9,7 +9,7 @@ from dff.simulation.weight_patterns import compute_kernel_gauss_tensor
 #    tf.TensorSpec(shape=(None,), dtype=tf.float32)
 #))
 @tf.function
-def convolve(x, w):
+def convolve_old(x, w):
     """Performs a convolution
 
     :param Tensor x: tensor to convolve
@@ -57,7 +57,7 @@ def convolve(x, w):
 
 
 @tf.function
-def convolve_fft(x, w):
+def convolve(x, w):
     """Performs a convolution using the fast fourier transform
 
     :param Tensor x: The tensor to convolve
