@@ -10,6 +10,7 @@ from dfpy.activation_function import Sigmoid, Identity
 
 from dff.simulation.simulator_graph import create_unrolled_simulation_call, create_rolled_simulation_call, \
     create_unrolled_simulation_call_with_history, create_impromptu_simulation_call_with_history
+from dff.simulation.simulator_graph import simulate_unrolled_time_steps
 
 logger = logging.getLogger(__name__)
 
@@ -687,12 +688,13 @@ class Simulator:
 
     def get_unrolled_simulation_call(self, num_time_steps):
         if num_time_steps not in self._simulation_calls_with_unrolled_time_steps:
-            self._simulation_calls_with_unrolled_time_steps[num_time_steps] = \
-                create_unrolled_simulation_call(self, num_time_steps, self._time_step_duration)
+            #self._simulation_calls_with_unrolled_time_steps[num_time_steps] = \
+            #    create_unrolled_simulation_call(self, num_time_steps, self._time_step_duration)
+            self._simulation_calls_with_unrolled_time_steps[num_time_steps] = True
             new_graph = True
         else:
             new_graph = False
-        return self._simulation_calls_with_unrolled_time_steps[num_time_steps], new_graph
+        return new_graph
 
     def get_unrolled_simulation_call_with_history(self, num_time_steps):
         return create_unrolled_simulation_call_with_history(self, num_time_steps, self._time_step_duration)
@@ -793,7 +795,7 @@ class Simulator:
                         new_graph = False
 
             if mode == SimulationCallType.single:
-                simulation_call, new_graph = self.get_unrolled_simulation_call(1)
+                new_graph = self.get_unrolled_simulation_call(1)
                 if num_time_steps > 0:
                     before_simulating = time.time()
                     trace_duration = 0
@@ -801,7 +803,8 @@ class Simulator:
                         if new_graph:
                             logger.info(f"Tracing simulation call with 1 time step...")
                             before = time.time()
-                        self._values = simulation_call(self.get_time_as_tensor() + i*self._time_step_duration, self._values)
+                        #self._values = simulation_call(self.get_time_as_tensor() + i*self._time_step_duration, self._values)
+                        self._values = simulate_unrolled_time_steps(self, 1, self.get_time_as_tensor() + i*self._time_step_duration, self._time_step_duration, self._values)
                         if new_graph:
                             trace_duration = time.time()-before
                             logger.info("Done tracing after " + str(trace_duration) + " seconds")
