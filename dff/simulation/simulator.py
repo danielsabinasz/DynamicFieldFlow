@@ -3,6 +3,7 @@ import time
 import logging
 from enum import Enum
 
+import dff.simulation.steps.gauss_input
 from dff.simulation.util import compute_positional_grid
 from dff.simulation.weight_patterns import compute_weight_pattern_tensor, weight_pattern_config_from_dfpy_weight_pattern
 from dfpy.activation_function import Sigmoid, Identity
@@ -401,10 +402,11 @@ class Simulator:
         # GaussInput
         #
         if isinstance(step, GaussInput):
-            initial_value = steps.gauss_input.gauss_input_time_step(variables["height"],
-                                                                   variables["mean"],
-                                                                   variables["sigmas"],
-                                                                   time_and_variable_invariant_tensors["positional_grid"])
+            initial_value = time_invariant_variable_variant_tensors["gauss_input_tensor"]
+            #initial_value = steps.gauss_input.gauss_input_time_step(variables["height"],
+            #                                                       variables["mean"],
+            #                                                       variables["sigmas"],
+            #                                                       time_and_variable_invariant_tensors["positional_grid"])
 
         #
         # CustomInput
@@ -493,6 +495,10 @@ class Simulator:
                 "lateral_interaction_weight_pattern_tensor": compute_weight_pattern_tensor(variables["interaction_kernel_weight_pattern_config"],
                                                                                            time_and_variable_invariant_tensors["interaction_kernel_positional_grid"])
             }
+        elif isinstance(step, GaussInput):
+            tensors = dff.simulation.steps.gauss_input.gauss_input_prepare_time_invariant_variable_variant_tensors(
+                variables["mean"], variables["sigmas"], variables["height"],
+                time_and_variable_invariant_tensors["positional_grid"])
         else:
             tensors = {}
 

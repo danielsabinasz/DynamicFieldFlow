@@ -188,11 +188,11 @@ def simulate_time_step(simulator, time_step, start_time, time_step_duration, cur
             elif isinstance(step, NoiseInput):
                 new_values[i] = dff.simulation.steps.noise_input.noise_input_time_step(time_step_duration, step.shape,
                                                                                        step.strength)
-            elif isinstance(step, GaussInput):
-                new_values[i] = dff.simulation.steps.gauss_input.gauss_input_time_step(variables["height"],
-                                                                                       variables["mean"],
-                                                                                       variables["sigmas"],
-                                                                                       time_and_variable_invariant_tensors["positional_grid"])
+            #elif isinstance(step, GaussInput):
+            #    new_values[i] = dff.simulation.steps.gauss_input.gauss_input_time_step(variables["height"],
+            #                                                                           variables["mean"],
+            #                                                                           variables["sigmas"],
+            #                                                                           time_and_variable_invariant_tensors["positional_grid"])
 
     return new_values
 
