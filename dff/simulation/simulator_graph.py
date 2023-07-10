@@ -58,15 +58,16 @@ def create_rolled_simulation_call(simulator, time_step_duration):
 def simulate_unrolled_time_steps(simulator, num_time_steps, start_time, time_step_duration, values):
     logger.debug(f"trace simulate_unrolled_time_steps")
 
+    current_values = values
     for relative_time_step in range(num_time_steps):
         time_step = tf.cast(relative_time_step + start_time/time_step_duration, tf.int32)
         # TODO: Why does tracing here take twice as much time?
-        new_values = simulate_time_step(simulator, time_step, start_time, time_step_duration, values)
+        current_values = simulate_time_step(simulator, time_step, start_time, time_step_duration, current_values)
 
-        for i in range(0, len(simulator._neural_structure.steps)):
-            values[i].assign(new_values[i])
+        #for i in range(0, len(simulator._neural_structure.steps)):
+        #    values[i].assign(new_values[i])
 
-    return values
+    return current_values
 
 @tf.function
 def simulate_unrolled_time_steps_with_history(simulator, num_time_steps, start_time, time_step_duration, values):

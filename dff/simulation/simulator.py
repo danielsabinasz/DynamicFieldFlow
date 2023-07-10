@@ -122,6 +122,7 @@ class Simulator:
         self._neural_structure.register_add_connection_observer(self._handle_add_connection)
 
     def _handle_modified_step(self, step, changed_param):
+        raise RuntimeError("_handle_modified_step in simulator.py must be adapted to optimizations")
         step_index = self._neural_structure.steps.index(step)
 
         new_value = getattr(step, changed_param)
@@ -150,6 +151,7 @@ class Simulator:
         self._values[step_index].assign(self.compute_initial_value_for_step(step_index, step))
 
     def _handle_add_step(self, step):
+        raise RuntimeError("_handle_add_step in simulator.py must be adapted to optimizations")
         self.prepare_constants_and_variables_for_step(step)
         self.prepare_time_and_variable_invariant_tensors_for_step(step)
         self.prepare_connection_kernel_weights_tensors()
@@ -503,7 +505,7 @@ class Simulator:
         for i in range(0, len(steps)):
             step = steps[i]
             initial_value = self.compute_initial_value_for_step(i, step, time_invariant_variable_variant_tensors)
-            self._initial_values[i].assign(initial_value)
+            self._initial_values[i] = initial_value
         return self._initial_values
 
     def compute_initial_values(self, time_invariant_variable_variant_tensors):
@@ -512,7 +514,7 @@ class Simulator:
         for i in range(0, len(steps)):
             step = steps[i]
             initial_value = self.compute_initial_value_for_step(i, step, time_invariant_variable_variant_tensors)
-            initial_values.append(tf.Variable(initial_value=initial_value))
+            initial_values.append(initial_value)
         return initial_values
 
     def prepare_initial_values(self):
@@ -538,7 +540,7 @@ class Simulator:
                 self._recorded_values.append([])
 
             initial_value = self._initial_values[i]
-            value = tf.Variable(initial_value=initial_value)
+            value = initial_value
             self._values.append(value)
 
             if self._record_values:
@@ -793,12 +795,13 @@ class Simulator:
                         if new_graph:
                             logger.info(f"Tracing simulation call with 1 time step...")
                             before = time.time()
-                        simulation_call(self.get_time_as_tensor() + i*self._time_step_duration, self._values)
+                        self._values = simulation_call(self.get_time_as_tensor() + i*self._time_step_duration, self._values)
                         if new_graph:
                             trace_duration = time.time()-before
                             logger.info("Done tracing after " + str(trace_duration) + " seconds")
                             new_graph = False
-                    logger.info("Done simulating after " + str(time.time()-before_simulating-trace_duration) + " seconds")
+                    if trace_duration == 0:
+                        logger.info("Done simulating after " + str(time.time()-before_simulating-trace_duration) + " seconds")
                 else:
                     raise RuntimeError("Trying to simulate 0 time steps. This is probably a mistake.")
 
