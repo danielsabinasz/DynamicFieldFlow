@@ -61,7 +61,6 @@ class Simulator:
     def __init__(self, neural_structure: NeuralStructure = None,
                  time_step_duration: float=20.0, record_values=False,
                  queue: Queue=None, record_time_points_of_interest: bool=False,
-                 default_simulation_call_type = SimulationCallType.single,
                  debug_steps: list=[]):
         """Creates a TensorFlow simulator.
 
@@ -82,12 +81,6 @@ class Simulator:
 
         self._queue = queue
         self._record_time_points_of_interest = record_time_points_of_interest
-        if type(default_simulation_call_type) == str:
-            if default_simulation_call_type == "largest":
-                default_simulation_call_type = SimulationCallType.largest
-            if default_simulation_call_type == "single":
-                default_simulation_call_type = SimulationCallType.single
-        self._default_simulation_call_type = default_simulation_call_type
         self._debug_steps = debug_steps
 
         self._initial_values = None
@@ -727,7 +720,7 @@ class Simulator:
 
         return simulation_call, largest_num_time_steps_per_call, new_graph
 
-    def simulate_time_steps(self, num_time_steps: int, mode = None, in_multiples_of: int = None):
+    def simulate_time_steps(self, num_time_steps: int, in_multiples_of: int = None):
         """Simulates the specified number of time steps.
 
         :param num_time_steps: the number of time steps to simulate
@@ -735,12 +728,9 @@ class Simulator:
         """
         logger.debug("simulate_time_steps " + str(num_time_steps))
 
-        if mode == None:
-            mode = self._default_simulation_call_type
-
         if in_multiples_of is not None:
 
-            simulation_call, new_graph = self.get_unrolled_simulation_call(in_multiples_of)
+            new_graph = self.get_unrolled_simulation_call(in_multiples_of)
             before_simulating = time.time()
             trace_duration = 0
             num_main_calls = floor(num_time_steps / in_multiples_of)
@@ -751,7 +741,9 @@ class Simulator:
                 if new_graph:
                     logger.info(f"Tracing simulation call with {in_multiples_of} time steps...")
                     before = time.time()
-                simulation_call(self.get_time_as_tensor(), self._values)
+                self._values = simulate_unrolled_time_steps(self, in_multiples_of,
+                                                            self.get_time_as_tensor() + i * in_multiples_of * self._time_step_duration,
+                                                            self._time_step_duration, self._values)
                 if new_graph:
                     trace_duration = time.time() - before
                     logger.info("Done tracing after " + str(trace_duration) + " seconds")
@@ -759,60 +751,24 @@ class Simulator:
             logger.info("Done simulating after " + str(time.time()-before_simulating-trace_duration) + " seconds")
 
         else:
-
-            if mode == "largest":
-                mode = SimulationCallType.largest
-            if mode == "single":
-                mode = SimulationCallType.single
-
-            if mode == SimulationCallType.largest:
-                main_simulation_call, num_time_steps_per_call, new_graph = self.get_largest_suitable_unrolled_simulation_call(num_time_steps)
-
-                if num_time_steps_per_call > 0:
-                    num_main_calls = floor(num_time_steps / num_time_steps_per_call)
-                    if num_main_calls > 0:
-                        logger.warning(f"You are trying to simulate {num_time_steps} time steps before registering a simulation call. Running a simulation call for {num_time_steps_per_call} time steps {num_main_calls} times.")
-                    for i in range(num_main_calls):
-                        if new_graph:
-                            logger.info(f"Tracing simulation call with {num_time_steps_per_call} time steps...")
-                            before = time.time()
-                        main_simulation_call(self.get_time_as_tensor(), self._values)
-                        if new_graph:
-                            logger.info("Done tracing after " + str(time.time()-before) + " seconds")
-                            new_graph = False
-
-                num_remaining_calls = num_time_steps % num_time_steps_per_call
-                if num_remaining_calls > 0:
-                    logger.warning(f"You are trying to simulate {num_time_steps} time steps using a simulation call with {num_time_steps_per_call} time steps per call. That simulation call can only simulate until time step {num_time_steps}*{num_time_steps_per_call}={num_time_steps*num_time_steps_per_call}. Simulating {num_remaining_calls} additional calls using rolled mode.")
-
-                    remaining_simulation_call, new_graph = self.get_rolled_simulation_call()
+            new_graph = self.get_unrolled_simulation_call(1)
+            if num_time_steps > 0:
+                before_simulating = time.time()
+                trace_duration = 0
+                for i in range(num_time_steps):
                     if new_graph:
-                        logger.info(f"Tracing rolled simulation call...")
+                        logger.info(f"Tracing simulation call with 1 time step...")
                         before = time.time()
-                    remaining_simulation_call(self.get_time_as_tensor(), self._values)
+                    #self._values = simulation_call(self.get_time_as_tensor() + i*self._time_step_duration, self._values)
+                    self._values = simulate_unrolled_time_steps(self, 1, self.get_time_as_tensor() + i*self._time_step_duration, self._time_step_duration, self._values)
                     if new_graph:
-                        logger.info("Done tracing after " + str(time.time()-before) + " seconds")
+                        trace_duration = time.time()-before
+                        logger.info("Done tracing after " + str(trace_duration) + " seconds")
                         new_graph = False
-
-            if mode == SimulationCallType.single:
-                new_graph = self.get_unrolled_simulation_call(1)
-                if num_time_steps > 0:
-                    before_simulating = time.time()
-                    trace_duration = 0
-                    for i in range(num_time_steps):
-                        if new_graph:
-                            logger.info(f"Tracing simulation call with 1 time step...")
-                            before = time.time()
-                        #self._values = simulation_call(self.get_time_as_tensor() + i*self._time_step_duration, self._values)
-                        self._values = simulate_unrolled_time_steps(self, 1, self.get_time_as_tensor() + i*self._time_step_duration, self._time_step_duration, self._values)
-                        if new_graph:
-                            trace_duration = time.time()-before
-                            logger.info("Done tracing after " + str(trace_duration) + " seconds")
-                            new_graph = False
-                    if trace_duration == 0:
-                        logger.info("Done simulating after " + str(time.time()-before_simulating-trace_duration) + " seconds")
-                else:
-                    raise RuntimeError("Trying to simulate 0 time steps. This is probably a mistake.")
+                if trace_duration == 0:
+                    logger.info("Done simulating after " + str(time.time()-before_simulating-trace_duration) + " seconds")
+            else:
+                raise RuntimeError("Trying to simulate 0 time steps. This is probably a mistake.")
 
         # Replace values and increment time step
         self._values_lock.acquire()

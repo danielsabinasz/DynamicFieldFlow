@@ -1,15 +1,21 @@
 import logging
+import dff
 
 import tensorflow as tf
 from dff.simulation.weight_patterns import compute_kernel_gauss_tensor
 
+def convolve(x, w):
+    if dff.config.use_fft:
+        return convolve_fft(x, w)
+    else:
+        return convolve_classic(x, w)
 
 #@tf.function(input_signature=(
 #    tf.TensorSpec(shape=(None,), dtype=tf.float32),
 #    tf.TensorSpec(shape=(None,), dtype=tf.float32)
 #))
 @tf.function
-def convolve_old(x, w):
+def convolve_classic(x, w):
     """Performs a convolution
 
     :param Tensor x: tensor to convolve
@@ -57,7 +63,7 @@ def convolve_old(x, w):
 
 
 @tf.function
-def convolve(x, w):
+def convolve_fft(x, w):
     """Performs a convolution using the fast fourier transform
 
     :param Tensor x: The tensor to convolve

@@ -12,5 +12,5 @@ def timed_custom_input_prepare_variables(step):
 
 @tf.function
 def timed_custom_input_time_step(timed_custom_input, time_step):
-    logging.debug("trace timed_custom_input_time_step")
+    logging.debug(f"trace timed_custom_input_time_step {timed_custom_input} {time_step}")
     return timed_custom_input[time_step]

@@ -5,3 +5,4 @@ logging.getLogger('matplotlib').setLevel(logging.ERROR)
 
 from dff.simulation.simulator import Simulator
 from dff.visualization import *
+import dff.config
