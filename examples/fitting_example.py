@@ -42,12 +42,12 @@ ns= dfpy.shared.get_default_neural_structure()
 
 
 simulation_call = dff_simulator.get_unrolled_simulation_call_with_history(num_time_steps)
+time_invariant_variable_variant_tensors = dff_simulator.compute_time_invariant_variable_variant_tensors()
+initial_values = dff_simulator.update_initial_values(time_invariant_variable_variant_tensors)
 
 
 @tf.function
 def loss():
-    time_invariant_variable_variant_tensors = dff_simulator.compute_time_invariant_variable_variant_tensors()
-    initial_values = dff_simulator.update_initial_values(time_invariant_variable_variant_tensors)
 
     # Perform simulation
     values_history = simulation_call(0, initial_values)
