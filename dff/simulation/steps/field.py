@@ -70,10 +70,29 @@ def field_prepare_time_and_variable_invariant_tensors(step, shape, domain):
 
     # Clipping
     if step.interaction_kernel is not None:
-        rng = step.interaction_kernel.range()
+        rng = step.interaction_kernel.ranges()
         if rng is not None:
-            w = shape[0]
-            interaction_kernel_positional_grid = interaction_kernel_positional_grid[w//2-rng[1]:w//2+rng[0]+1]
+            if len(rng) == 1:
+                w = shape[0]
+                interaction_kernel_positional_grid = interaction_kernel_positional_grid[
+                                                     w//2-rng[0][1] : w//2+rng[0][0]+1
+                                                     ]
+            if len(rng) == 2:
+                w = shape[0]
+                h = shape[1]
+                interaction_kernel_positional_grid = interaction_kernel_positional_grid[
+                                                     w//2-rng[0][1] : w//2+rng[0][0]+1,
+                                                     h//2-rng[1][1] : h//2+rng[1][0]+1
+                                                     ]
+            if len(rng) == 3:
+                w = shape[0]
+                h = shape[1]
+                d = shape[2]
+                interaction_kernel_positional_grid = interaction_kernel_positional_grid[
+                                                     w//2-rng[0][1] : w//2+rng[0][0]+1,
+                                                     h//2-rng[1][1] : h//2+rng[1][0]+1,
+                                                     d//2-rng[2][1] : d//2+rng[2][0]+1
+                                                     ]
 
     return {"positional_grid": positional_grid, "interaction_kernel_positional_grid": interaction_kernel_positional_grid}
 
@@ -109,11 +128,13 @@ def field_time_step(time_step_duration, shape, bin_size, time_scale, sigmoid_bet
     :param Tensor activation: field activation from the previous time step
     :return: Tensor: field activation
     """
-    #logging.debug(f"trace field_time_step: time_step_duration={time_step_duration}, shape={shape}, bin_size={bin_size}, time_scale={time_scale}, sigmoid_beta={sigmoid_beta}, global_inhibition={global_inhibition}, noise_strength={noise_strength}, resting_level_tensor={resting_level_tensor}, interaction_kernel={interaction_kernel}, input={input}, activation={activation}")
+    logging.debug(f"trace field_time_step: time_step_duration={time_step_duration}, shape={shape}, bin_size={bin_size}, time_scale={time_scale}, sigmoid_beta={sigmoid_beta}, global_inhibition={global_inhibition}, noise_strength={noise_strength}")
 
     minus_u = tf.multiply(-1.0, activation)
 
     output = tf.math.sigmoid(tf.multiply(sigmoid_beta, activation))
+
+    global_inhibition * tf.reduce_sum(output)
 
     global_inhibition_result = tf.ones(shape) * global_inhibition * tf.reduce_sum(output)
 

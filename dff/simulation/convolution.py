@@ -70,7 +70,7 @@ def convolve_fft(x, w):
     :param Tensor w: The convolution kernel
     :return Tensor: The convolution result
     """
-    logging.debug("trace convolution_fft")
+    logging.debug(f"trace convolution_fft x={x} w={w}")
 
     ndim = len(x.shape)
     if ndim == 2:

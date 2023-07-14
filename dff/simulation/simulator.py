@@ -2,7 +2,6 @@ import threading
 import time
 import logging
 from enum import Enum
-from tensorflow.python.eager import profiler
 
 import dff.simulation.steps.gauss_input
 from dff.simulation.util import compute_positional_grid
@@ -664,13 +663,15 @@ class Simulator:
         """
         return self.simulate_time_steps(1)
 
-    def simulate_until(self, time: float, in_multiples_of: int = None):
+    def simulate_until(self, time: float, mode: str = None, in_multiples_of: int = None):
+        if mode == None:
+            mode = self._default_simulation_call_type
         if type(time) == int:
             time = float(time)
         current_time = self.get_time_as_tensor()
         duration_to_simulate = time - current_time
         num_time_steps = ceil(duration_to_simulate / self._time_step_duration)
-        return self.simulate_time_steps(num_time_steps, in_multiples_of)
+        return self.simulate_time_steps(num_time_steps, mode, in_multiples_of)
 
     def simulate_for(self, duration: float, mode = None, in_multiples_of = None):
         if mode == None:
@@ -740,19 +741,9 @@ class Simulator:
                 if new_graph:
                     logger.info(f"Tracing simulation call with {in_multiples_of} time steps...")
                     before = time.time()
-
-                #writer = tf.summary.create_file_writer("/home/daniel/Profiling")
-                #tf.summary.trace_on(graph=True, profiler=True)
                 self._values = simulate_unrolled_time_steps(self, in_multiples_of,
                                                             self.get_time_as_tensor() + i * in_multiples_of * self._time_step_duration,
                                                             self._time_step_duration, self._values)
-
-                #with writer.as_default():
-                #    tf.summary.trace_export(
-                #        name="my_func_trace",
-                #        step=1,
-                #        profiler_outdir="/home/daniel/Profiling")
-
                 if new_graph:
                     trace_duration = time.time() - before
                     logger.info("Done tracing after " + str(trace_duration) + " seconds")
