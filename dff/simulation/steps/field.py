@@ -88,6 +88,8 @@ def field_compute_time_invariant_variable_variant_tensors(shape, interaction_ker
 
 import matplotlib.pyplot as plt
 
+import time
+
 @tf.function
 def field_time_step(time_step_duration, shape, bin_size, time_scale, sigmoid_beta,
                     global_inhibition, noise_strength, resting_level_tensor, interaction_kernel,
@@ -107,14 +109,18 @@ def field_time_step(time_step_duration, shape, bin_size, time_scale, sigmoid_bet
     :param Tensor activation: field activation from the previous time step
     :return: Tensor: field activation
     """
-    logging.debug(f"trace field_time_step: time_step_duration={time_step_duration}, shape={shape}, bin_size={bin_size}, time_scale={time_scale}, sigmoid_beta={sigmoid_beta}, global_inhibition={global_inhibition}, noise_strength={noise_strength}, resting_level_tensor={resting_level_tensor}, interaction_kernel={interaction_kernel}, input={input}, activation={activation}")
+    #logging.debug(f"trace field_time_step: time_step_duration={time_step_duration}, shape={shape}, bin_size={bin_size}, time_scale={time_scale}, sigmoid_beta={sigmoid_beta}, global_inhibition={global_inhibition}, noise_strength={noise_strength}, resting_level_tensor={resting_level_tensor}, interaction_kernel={interaction_kernel}, input={input}, activation={activation}")
 
     minus_u = tf.multiply(-1.0, activation)
 
     output = tf.math.sigmoid(tf.multiply(sigmoid_beta, activation))
+
     global_inhibition_result = tf.ones(shape) * global_inhibition * tf.reduce_sum(output)
+
     noise_term = tf.multiply(tf.multiply(tf.sqrt(time_step_duration), noise_strength), tf.random.normal(shape))
+
     conv_result = convolve(output, interaction_kernel) * bin_size
+
     #tf.print("conv lat", output.shape, interaction_kernel.shape)
     sum = tf.add_n([minus_u, resting_level_tensor, input, conv_result, global_inhibition_result, noise_term])
 
