@@ -749,6 +749,8 @@ class Simulator:
         logger.debug("simulate_time_steps " + str(num_time_steps))
 
         if in_multiples_of is not None:
+            if num_time_steps % in_multiples_of != 0:
+                raise RuntimeError(f"Cannot simulate {num_time_steps} time steps in multiples of {in_multiples_of}.")
 
             new_graph = self.get_unrolled_simulation_call(in_multiples_of)
             before_simulating = time.time()
