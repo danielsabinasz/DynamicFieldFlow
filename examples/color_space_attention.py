@@ -31,7 +31,7 @@ connect(color_space_perception_field, color_space_attention_field, pointwise_wei
 color_space_perception_field_input = create_color_space_perception_field_input(color_space_perception_field, "images/twoPair_fullPairB.jpg")
 connect(color_space_perception_field_input, color_space_perception_field, pointwise_weights=7.0)
 
-example_ridge_input_pattern = np.zeros(shape=(51,51,25))
+example_ridge_input_pattern = np.zeros(shape=(50,50,25), dtype=np.float32)
 example_ridge_input_pattern[:,:,8] = 3
 example_ridge_input = CustomInput(example_ridge_input_pattern)
 connect(example_ridge_input, color_space_attention_field)

@@ -5,6 +5,7 @@ from dfpy.dimension import Dimension
 
 # Note: The input pattern can also be a numpy array or a TensorFlow tensor
 custom_input = CustomInput(pattern=[0.0]*10+[6.0]*10+[0.0]*31)
+custom_input.assignable = True
 
 field = Field(
     dimensions=[Dimension(-25, 25, 51)],

@@ -117,11 +117,12 @@ class Simulator:
         self._neural_structure.register_add_connection_observer(self._handle_add_connection)
 
     def _handle_modified_step(self, step, changed_param):
-        raise RuntimeError("_handle_modified_step in simulator.py must be adapted to optimizations")
         step_index = self._neural_structure.steps.index(step)
 
         new_value = getattr(step, changed_param)
         if changed_param in self._variables[step]:
+            if not step.assignable:
+                raise RuntimeError("Step '" + str(step.name) + "' does not have assignable attributes. Please set step.assignable=True before creating a simulator.")
             self._variables[step][changed_param].assign(new_value)
         elif changed_param == "interaction_kernel" and isinstance(step, Field):
             weight_pattern_config = weight_pattern_config_from_dfpy_weight_pattern(new_value, step.domain(), step.shape())
@@ -139,21 +140,26 @@ class Simulator:
         else:
             raise RuntimeError(f"Unrecognized changed_param '{changed_param}'")
 
-        self._initial_values[step_index].assign(self.compute_initial_value_for_step(step_index, step))
+        if isinstance(step, GaussInput):
+            self._time_invariant_variable_variant_tensors[step] = self.compute_time_invariant_variable_variant_tensors_for_step(step)
+
+        self._initial_values[step_index] = self.compute_initial_value_for_step(step_index, step)
 
         self._time_invariant_variable_variant_tensors[step] =\
             self.compute_time_invariant_variable_variant_tensors_for_step(step)
-        self._values[step_index].assign(self.compute_initial_value_for_step(step_index, step))
+        self._values[step_index] = self.compute_initial_value_for_step(step_index, step)
 
     def _handle_add_step(self, step):
-        raise RuntimeError("_handle_add_step in simulator.py must be adapted to optimizations")
+        # Steps which are added after a simulator has been created are assumed to be assignable
+        step.assignable = True
+
         self.prepare_constants_and_variables_for_step(step)
         self.prepare_time_and_variable_invariant_tensors_for_step(step)
         self.prepare_connection_kernel_weights_tensors()
         step_index = self._neural_structure.steps.index(step)
         self._time_invariant_variable_variant_tensors[step] = \
             self.compute_time_invariant_variable_variant_tensors_for_step(step)
-        initial_value = tf.Variable(self.compute_initial_value_for_step(step_index, step))
+        initial_value = self.compute_initial_value_for_step(step_index, step)
         self._values.append(initial_value)
         self._initial_values.append(initial_value)
         step.register_observer(self._handle_modified_step)
@@ -587,11 +593,29 @@ class Simulator:
                         kernel_domain = [[-rng / 2, rng / 2]]
                         kernel_positional_grid = compute_positional_grid(shape, kernel_domain)
 
-                        rng = connection.kernel_weights.range()
+                        rng = connection.kernel_weights.ranges()
                         if rng is not None:
-                            w = shape[0]
-                            kernel_positional_grid = kernel_positional_grid[
-                                                                 w // 2 - rng[1]:w // 2 + rng[0] + 1]
+                            if len(rng) == 1:
+                                w = shape[0]
+                                kernel_positional_grid = kernel_positional_grid[
+                                                                     w // 2 - rng[0][1]: w // 2 + rng[0][0] + 1
+                                                                     ]
+                            if len(rng) == 2:
+                                w = shape[0]
+                                h = shape[1]
+                                kernel_positional_grid = kernel_positional_grid[
+                                                                     w // 2 - rng[0][1]: w // 2 + rng[0][0] + 1,
+                                                                     h // 2 - rng[1][1]: h // 2 + rng[1][0] + 1
+                                                                     ]
+                            if len(rng) == 3:
+                                w = shape[0]
+                                h = shape[1]
+                                d = shape[2]
+                                kernel_positional_grid = kernel_positional_grid[
+                                                                     w // 2 - rng[0][1]: w // 2 + rng[0][0] + 1,
+                                                                     h // 2 - rng[1][1]: h // 2 + rng[1][0] + 1,
+                                                                     d // 2 - rng[2][1]: d // 2 + rng[2][0] + 1
+                                                                     ]
 
                         # TODO handle scalar case differently
                         kernel_weight_pattern_config = weight_pattern_config_from_dfpy_weight_pattern(connection.kernel_weights, domain, shape)
@@ -663,21 +687,17 @@ class Simulator:
         """
         return self.simulate_time_steps(1)
 
-    def simulate_until(self, time: float, mode: str = None, in_multiples_of: int = None):
-        if mode == None:
-            mode = self._default_simulation_call_type
+    def simulate_until(self, time: float, in_multiples_of: int = None):
         if type(time) == int:
             time = float(time)
         current_time = self.get_time_as_tensor()
         duration_to_simulate = time - current_time
         num_time_steps = ceil(duration_to_simulate / self._time_step_duration)
-        return self.simulate_time_steps(num_time_steps, mode, in_multiples_of)
+        return self.simulate_time_steps(num_time_steps, in_multiples_of)
 
-    def simulate_for(self, duration: float, mode = None, in_multiples_of = None):
-        if mode == None:
-            mode = self._default_simulation_call_type
+    def simulate_for(self, duration: float, in_multiples_of = None):
         num_time_steps = ceil(duration / self._time_step_duration)
-        return self.simulate_time_steps(num_time_steps, mode, in_multiples_of)
+        return self.simulate_time_steps(num_time_steps, in_multiples_of)
 
     def get_unrolled_simulation_call(self, num_time_steps):
         if num_time_steps not in self._simulation_calls_with_unrolled_time_steps:

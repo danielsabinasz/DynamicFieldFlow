@@ -2,17 +2,21 @@ from dff import visualization, Simulator
 from dfpy import connect, Field, GaussInput, Dimension, GaussWeightPattern, initialize_architecture, SumWeightPattern
 from dff.visualization import default_snapshot_plot
 import time
+import tensorflow as tf
+
+#import os
+#os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 for x in range(950, 960, 10):
 
     gauss = GaussInput(
-        dimensions=[Dimension(-x/2, x/2, x+1-x%2), Dimension(-x/2, x/2, x+1-x%2)],
+        dimensions=[Dimension(-x/2, x/2, x), Dimension(-x/2, x/2, x)],
         height=5.5,
         sigmas=[3.0, 3.0]
     )
 
     field = Field(
-        dimensions=[Dimension(-x/2, x/2, x+1-x%2), Dimension(-x/2, x/2, x+1-x%2)],
+        dimensions=[Dimension(-x/2, x/2, x), Dimension(-x/2, x/2, x)],
         resting_level=-5.0,
         interaction_kernel=SumWeightPattern([
             GaussWeightPattern(height=0.4, sigmas=(2.0, 2.0,)),
@@ -32,8 +36,11 @@ for x in range(950, 960, 10):
     time_before = time.time()
     simulator.simulate_time_steps(1, in_multiples_of=1)
     duration = (time.time() - time_before)/1.0
-
-    print(x, "\t", 1000 * duration)
+    print("berechnen", 1000 * duration)
+    time_before = time.time()
+    simulator.get_value(field).numpy()
+    duration = (time.time() - time_before)/1.0
+    print("abholen", 1000 * duration)
 
     if x == 950:
         plot = default_snapshot_plot(field)
@@ -41,3 +48,5 @@ for x in range(950, 960, 10):
         plot.figure.show()
 
     initialize_architecture()
+
+print("")

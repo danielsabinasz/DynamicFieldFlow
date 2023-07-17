@@ -109,7 +109,7 @@ import matplotlib.pyplot as plt
 
 import time
 
-@tf.function
+#@tf.function
 def field_time_step(time_step_duration, shape, bin_size, time_scale, sigmoid_beta,
                     global_inhibition, noise_strength, resting_level_tensor, interaction_kernel,
                     input=None, activation=None):

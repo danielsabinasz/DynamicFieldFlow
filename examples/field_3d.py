@@ -15,9 +15,10 @@ field = Field(
     interaction_kernel=SumWeightPattern([
         GaussWeightPattern(height=0.4, sigmas=(2.0, 2.0, 2.0)),
         GaussWeightPattern(height=-0.11, sigmas=(4.0, 4.0, 4.0))
-    ]),
+    ], field_size=(51,31,25)),
     global_inhibition=0.0
 )
+
 
 connect(gauss, field, pointwise_weights=6.0)
 
