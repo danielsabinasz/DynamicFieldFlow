@@ -54,7 +54,7 @@ def create_rolled_simulation_call(simulator, time_step_duration):
     return simulation_call
 
 
-#@tf.function
+@tf.function
 def simulate_unrolled_time_steps(simulator, num_time_steps, start_time, time_step_duration, values):
     logger.debug(f"trace simulate_unrolled_time_steps")
 
@@ -119,7 +119,7 @@ def simulate_rolled_time_steps(simulator, num_time_steps, start_time, time_step_
     return values
 
 
-#@tf.function
+@tf.function
 def simulate_time_step(simulator, time_step, start_time, time_step_duration, current_values):
     #logger.debug(f"trace simulate_time_step")
 
