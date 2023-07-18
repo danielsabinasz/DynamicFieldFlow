@@ -54,7 +54,7 @@ def create_rolled_simulation_call(simulator, time_step_duration):
     return simulation_call
 
 
-@tf.function
+@tf.function(jit_compile=True)
 def simulate_unrolled_time_steps(simulator, num_time_steps, start_time, time_step_duration, values):
     logger.debug(f"trace simulate_unrolled_time_steps")
 
@@ -111,7 +111,7 @@ def simulate_impromptu_time_steps_with_history(simulator, num_time_steps, start_
 
 
 
-@tf.function
+#@tf.function
 def simulate_rolled_time_steps(simulator, num_time_steps, start_time, time_step_duration, values):
     logger.debug("trace simulate_rolled_time_steps")
     for time_step in tf.range(num_time_steps):
@@ -120,79 +120,94 @@ def simulate_rolled_time_steps(simulator, num_time_steps, start_time, time_step_
 
 
 @tf.function
+def simulate_time_step_for_step(step, step_index, simulator, current_values, start_time, time_step_duration, time_step):
+    constants = simulator._constants[step]
+    variables = simulator._variables[step]
+    time_and_variable_invariant_tensors = simulator._time_and_variable_invariant_tensors[step]
+    time_invariant_variable_variant_tensors = simulator._time_invariant_variable_variant_tensors[step]
+    step_shape = tf.shape(current_values[step_index])
+
+    if len(simulator._neural_structure.connections_into_steps[step_index]) == 0:
+        input_sum = tf.zeros(shape=step_shape)
+    else:
+        input_steps_current_values = get_input_steps_current_values(
+            simulator._neural_structure.connections_into_steps[step_index], current_values)
+        input_sum = get_input_sum(simulator, input_steps_current_values, step_shape, step_index)
+
+    if isinstance(step, TimedBoost):
+        return dff.simulation.steps.timed_boost.timed_boost_time_step(constants["values"],
+                                                                               start_time + time_step_duration
+                                                                               * tf.cast(time_step, tf.float32))
+    elif isinstance(step, TimedGate):
+        return dff.simulation.steps.timed_gate.timed_gate_time_step(constants["min_time"],
+                                                                             constants["max_time"],
+                                                                             input_sum,
+                                                                             start_time + time_step_duration
+                                                                             * tf.cast(time_step, tf.float32))
+    elif isinstance(step, TimedCustomInput):
+        return dff.simulation.steps.timed_custom_input.timed_custom_input_time_step(
+            variables["timed_custom_input"], time_step)
+    elif isinstance(step, Boost):
+        return dff.simulation.steps.boost.boost_time_step(constants["value"])
+    elif isinstance(step, Field):
+        if not step.trainable:
+            resting_level_tensor = time_invariant_variable_variant_tensors["resting_level_tensor"]
+            lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors[
+                "lateral_interaction_weight_pattern_tensor"]
+        else:
+            resting_level_tensor = time_invariant_variable_variant_tensors[step]["resting_level_tensor"]
+            lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors[step][
+                "lateral_interaction_weight_pattern_tensor"]
+
+        return dff.simulation.steps.field.field_time_step(time_step_duration,
+                                                                   constants["shape"],
+                                                                   constants["bin_size"],
+                                                                   variables["time_scale"],
+                                                                   variables["sigmoid_beta"],
+                                                                   variables["global_inhibition"],
+                                                                   variables["noise_strength"],
+                                                                   resting_level_tensor,
+                                                                   lateral_interaction_weight_pattern_tensor,
+                                                                   input_sum,
+                                                                   current_values[step_index])
+
+    elif isinstance(step, Node):
+        return dff.simulation.steps.node.node_time_step(time_step_duration,
+                                                                 variables["resting_level"],
+                                                                 variables["time_scale"],
+                                                                 variables["sigmoid_beta"],
+                                                                 variables["self_excitation"],
+                                                                 variables["noise_strength"],
+                                                                 input_sum, current_values[step_index])
+    elif isinstance(step, ScalarMultiplication):
+        return dff.simulation.steps.scalar_multiplication.scalar_multiplication_time_step(
+            variables[0],
+            input_sum)
+    elif isinstance(step, NoiseInput):
+        return dff.simulation.steps.noise_input.noise_input_time_step(time_step_duration, step.shape,
+                                                                               step.strength)
+    # elif isinstance(step, GaussInput):
+    #    new_values[i] = dff.simulation.steps.gauss_input.gauss_input_time_step(variables["height"],
+    #                                                                           variables["mean"],
+    #                                                                           variables["sigmas"],
+    #                                                                           time_and_variable_invariant_tensors["positional_grid"])
+
+
+@tf.function(jit_compile=True)
 def simulate_time_step(simulator, time_step, start_time, time_step_duration, current_values):
     #logger.debug(f"trace simulate_time_step")
 
     #before = time.time()
     # TODO see if performance can be improved by not creating a copy here
     # e.g., just an empty list, with or without specification of size, content shapes, ...
+
+    #strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
+
     new_values = current_values.copy()
     for i in range(0, len(simulator._neural_structure.steps)):
         step = simulator._neural_structure.steps[i]
         if not step.static:
-            constants = simulator._constants[step]
-            variables = simulator._variables[step]
-            time_and_variable_invariant_tensors = simulator._time_and_variable_invariant_tensors[step]
-            time_invariant_variable_variant_tensors = simulator._time_invariant_variable_variant_tensors[step]
-            step_shape = tf.shape(new_values[i])
-
-            if len(simulator._neural_structure.connections_into_steps[i]) == 0:
-                input_sum = tf.zeros(shape=step_shape)
-            else:
-                input_steps_current_values = get_input_steps_current_values(simulator._neural_structure.connections_into_steps[i], current_values)
-                input_sum = get_input_sum(simulator, input_steps_current_values, step_shape, i)
-
-            if isinstance(step, TimedBoost):
-                new_values[i] = dff.simulation.steps.timed_boost.timed_boost_time_step(constants["values"],
-                                                                                       start_time + time_step_duration
-                                                                                       * tf.cast(time_step, tf.float32))
-            elif isinstance(step, TimedGate):
-                new_values[i] = dff.simulation.steps.timed_gate.timed_gate_time_step(constants["min_time"], constants["max_time"],
-                                                                                     input_sum,
-                                                                                     start_time + time_step_duration
-                                                                                       * tf.cast(time_step, tf.float32))
-            elif isinstance(step, TimedCustomInput):
-                new_values[i] = dff.simulation.steps.timed_custom_input.timed_custom_input_time_step(variables["timed_custom_input"], time_step)
-            elif isinstance(step, Boost):
-                new_values[i] = dff.simulation.steps.boost.boost_time_step(constants["value"])
-            elif isinstance(step, Field):
-                if not step.trainable:
-                    resting_level_tensor = time_invariant_variable_variant_tensors["resting_level_tensor"]
-                    lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors["lateral_interaction_weight_pattern_tensor"]
-                else:
-                    resting_level_tensor = time_invariant_variable_variant_tensors[step]["resting_level_tensor"]
-                    lateral_interaction_weight_pattern_tensor = time_invariant_variable_variant_tensors[step]["lateral_interaction_weight_pattern_tensor"]
-
-                new_values[i] = dff.simulation.steps.field.field_time_step(time_step_duration,
-                                                                           constants["shape"],
-                                                                           constants["bin_size"],
-                                                                           variables["time_scale"],
-                                                                           variables["sigmoid_beta"],
-                                                                           variables["global_inhibition"],
-                                                                           variables["noise_strength"],
-                                                                           resting_level_tensor,
-                                                                           lateral_interaction_weight_pattern_tensor,
-                                                                           input_sum,
-                                                                           current_values[i])
-
-            elif isinstance(step, Node):
-                new_values[i] = dff.simulation.steps.node.node_time_step(time_step_duration,
-                                                                         variables["resting_level"], variables["time_scale"],
-                                                                         variables["sigmoid_beta"], variables["self_excitation"],
-                                                                         variables["noise_strength"],
-                                                                         input_sum, current_values[i])
-            elif isinstance(step, ScalarMultiplication):
-                new_values[i] = dff.simulation.steps.scalar_multiplication.scalar_multiplication_time_step(
-                    variables[0],
-                    input_sum)
-            elif isinstance(step, NoiseInput):
-                new_values[i] = dff.simulation.steps.noise_input.noise_input_time_step(time_step_duration, step.shape,
-                                                                                       step.strength)
-            #elif isinstance(step, GaussInput):
-            #    new_values[i] = dff.simulation.steps.gauss_input.gauss_input_time_step(variables["height"],
-            #                                                                           variables["mean"],
-            #                                                                           variables["sigmas"],
-            #                                                                           time_and_variable_invariant_tensors["positional_grid"])
+            new_values[i] = simulate_time_step_for_step(step, i, simulator, current_values, start_time, time_step_duration, time_step)
 
     return new_values
 
