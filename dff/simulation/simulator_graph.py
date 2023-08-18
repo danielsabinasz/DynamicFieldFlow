@@ -54,6 +54,8 @@ def create_rolled_simulation_call(simulator, time_step_duration):
     return simulation_call
 
 
+
+#@tf.function(jit_compile=True)
 @tf.function
 def simulate_unrolled_time_steps(simulator, num_time_steps, start_time, time_step_duration, values):
     logger.debug(f"trace simulate_unrolled_time_steps")
@@ -193,7 +195,8 @@ def simulate_time_step_for_step(step, step_index, simulator, current_values, sta
     #                                                                           time_and_variable_invariant_tensors["positional_grid"])
 
 
-@tf.function
+@tf.function(jit_compile=True)
+#@tf.function
 def simulate_time_step(simulator, time_step, start_time, time_step_duration, current_values):
     #logger.debug(f"trace simulate_time_step")
 
@@ -201,13 +204,15 @@ def simulate_time_step(simulator, time_step, start_time, time_step_duration, cur
     # TODO see if performance can be improved by not creating a copy here
     # e.g., just an empty list, with or without specification of size, content shapes, ...
 
-    #strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
+    #strategy = tf.distribute.MirroredStrategy()
 
     new_values = current_values.copy()
     for i in range(0, len(simulator._neural_structure.steps)):
         step = simulator._neural_structure.steps[i]
         if not step.static:
             new_values[i] = simulate_time_step_for_step(step, i, simulator, current_values, start_time, time_step_duration, time_step)
+            #new_values[i] = strategy.run(simulate_time_step_for_step, args=(step, i, simulator, current_values, start_time, time_step_duration, time_step))
+
 
     return new_values
 

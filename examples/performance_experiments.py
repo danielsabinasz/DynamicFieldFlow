@@ -18,10 +18,7 @@ for x in range(950, 960, 10):
     field = Field(
         dimensions=[Dimension(-x/2, x/2, x), Dimension(-x/2, x/2, x)],
         resting_level=-5.0,
-        interaction_kernel=SumWeightPattern([
-            GaussWeightPattern(height=0.4, sigmas=(2.0, 2.0,)),
-            GaussWeightPattern(height=-0.11, sigmas=(4.0, 4.0,))
-        ]),
+        interaction_kernel=GaussWeightPattern(height=1.0, sigmas=(2.0, 2.0,)),
         global_inhibition=-0.01
     )
 
@@ -32,14 +29,11 @@ for x in range(950, 960, 10):
 
     # Simulate
     simulator = Simulator(time_step_duration=10)
-    simulator.simulate_time_steps(1, in_multiples_of=1)
+    simulator.simulate_time_steps(10, in_multiples_of=10)
     time_before = time.time()
-    simulator.simulate_time_steps(1, in_multiples_of=1)
-    duration = (time.time() - time_before)/1.0
-    print("berechnen", 1000 * duration)
-    time_before = time.time()
+    simulator.simulate_time_steps(2, in_multiples_of=10)
     simulator.get_value(field).numpy()
-    duration = (time.time() - time_before)/1.0
+    duration = (time.time() - time_before)/10.0
     print("abholen", 1000 * duration)
 
     if x == 950:
