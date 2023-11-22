@@ -137,7 +137,7 @@ def field_time_step(time_step_duration, shape, bin_size, time_scale, sigmoid_bet
 
     global_inhibition_result = tf.ones(shape) * global_inhibition * tf.reduce_sum(output)
 
-    noise_term = tf.multiply(tf.multiply(tf.sqrt(time_step_duration), noise_strength), tf.random.normal(shape))
+    noise_term = tf.multiply(tf.divide(noise_strength, tf.sqrt(time_step_duration)), tf.random.normal(shape))
 
     conv_result = convolve(output, interaction_kernel)
 
