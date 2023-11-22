@@ -10,6 +10,7 @@ if is_m1_mac:
         'tensorflow-macos==2.9.0',
         'matplotlib==3.5.1',
         'numpy==1.22.3',
+        'scipy==1.9.3',
         'tensorflow-probability==0.15.0',
         'protobuf==3.20.0'
     ]
@@ -19,6 +20,7 @@ elif platform == "macosx-11.1-arm64":
         'tensorflow-macos==2.9.0',
         'matplotlib==3.5.1',
         'numpy==1.22.3',
+        'scipy==1.9.3',
         'tensorflow-probability==0.15.0',
         'protobuf==3.20.0'
     ]
@@ -28,6 +30,7 @@ else:
         'tensorflow==2.9.0',
         'matplotlib==3.5.1',
         'numpy==1.22.3',
+        'scipy==1.9.3',
         'tensorflow-probability==0.15.0',
         'protobuf==3.20.0'
     ]
