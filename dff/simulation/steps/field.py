@@ -109,8 +109,8 @@ import matplotlib.pyplot as plt
 
 import time
 
-@tf.function(jit_compile=True)
-#@tf.function
+#@tf.function(jit_compile=True)
+@tf.function
 def field_time_step(time_step_duration, shape, bin_size, time_scale, sigmoid_beta,
                     global_inhibition, noise_strength, resting_level_tensor, interaction_kernel,
                     input=None, activation=None):
@@ -139,7 +139,7 @@ def field_time_step(time_step_duration, shape, bin_size, time_scale, sigmoid_bet
 
     noise_term = tf.multiply(tf.divide(noise_strength, tf.sqrt(time_step_duration)), tf.random.normal(shape))
 
-    conv_result = convolve(output, interaction_kernel)
+    conv_result = convolve(output, interaction_kernel) * bin_size
 
     #tf.print("conv lat", output.shape, interaction_kernel.shape)
     sum = tf.add_n([minus_u, resting_level_tensor, input, conv_result, global_inhibition_result, noise_term])

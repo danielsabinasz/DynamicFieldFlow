@@ -1,6 +1,7 @@
 import time
 import logging
 
+import dff
 from dff.simulation.convolution import convolve
 from dff.simulation import steps
 from dff.simulation.weight_patterns import compute_weight_pattern_tensor
@@ -13,6 +14,7 @@ import tensorflow as tf
 from dfpy.steps import *
 import dff.simulation.steps
 import time
+import matplotlib.pyplot as plt
 
 def create_unrolled_simulation_call(simulator, num_time_steps, time_step_duration):
     logger.info(f"Creating new unrolled simulation call with {num_time_steps} time steps per call")
@@ -58,7 +60,7 @@ def create_rolled_simulation_call(simulator, time_step_duration):
 #@tf.function(jit_compile=True)
 @tf.function
 def simulate_unrolled_time_steps(simulator, num_time_steps, start_time, time_step_duration, values):
-    logger.debug(f"trace simulate_unrolled_time_steps")
+    logger.debug(f"trace simulate_unrolled_time_steps", num_time_steps, start_time, time_step_duration, values)
 
     current_values = values
     for relative_time_step in range(num_time_steps):
@@ -73,7 +75,7 @@ def simulate_unrolled_time_steps(simulator, num_time_steps, start_time, time_ste
 
 @tf.function
 def simulate_unrolled_time_steps_with_history(simulator, num_time_steps, start_time, time_step_duration, values):
-    logger.debug(f"trace simulate_unrolled_time_steps")
+    #logger.debug(f"trace simulate_unrolled_time_steps_with_history", num_time_steps, start_time, time_step_duration, values)
 
 
     # Prepare cache of time-invariant variable-variant tensors
@@ -102,8 +104,24 @@ def simulate_unrolled_time_steps_with_history(simulator, num_time_steps, start_t
 
 
 def simulate_impromptu_time_steps_with_history(simulator, num_time_steps, start_time, time_step_duration, values):
-    logger.debug(f"trace simulate_unrolled_time_steps")
+
+    # Prepare cache of time-invariant variable-variant tensors
+    for i in range(0, len(simulator._neural_structure.steps)):
+        step = simulator._neural_structure.steps[i]
+        if not step.static and step.trainable:
+            constants = simulator._constants[step]
+            variables = simulator._variables[step]
+            time_invariant_variable_variant_tensors = simulator._time_invariant_variable_variant_tensors[step]
+            time_and_variable_invariant_tensors = simulator._time_and_variable_invariant_tensors[step]
+            resting_level_tensor = tf.ones(tuple([int(x) for x in constants["shape"]])) * variables["resting_level"]
+            lateral_interaction_weight_pattern_tensor = compute_weight_pattern_tensor(variables["interaction_kernel_weight_pattern_config"],
+                                                                                      time_and_variable_invariant_tensors["interaction_kernel_positional_grid"])
+            time_invariant_variable_variant_tensors[step] = {}
+            time_invariant_variable_variant_tensors[step]["resting_level_tensor"] = resting_level_tensor
+            time_invariant_variable_variant_tensors[step]["lateral_interaction_weight_pattern_tensor"] = lateral_interaction_weight_pattern_tensor
+
     history = [values]
+    before = time.time()
     for time_step in range(num_time_steps):
         time_step_tensor = tf.constant(time_step)
         # TODO: Why does tracing here take twice as much time?
@@ -133,8 +151,8 @@ def simulate_time_step_for_step(step, step_index, simulator, current_values, sta
         input_sum = tf.zeros(shape=step_shape)
     else:
         input_steps_current_values = get_input_steps_current_values(
-            simulator._neural_structure.connections_into_steps[step_index], current_values)
-        input_sum = get_input_sum(simulator, input_steps_current_values, step_shape, step_index)
+            simulator._neural_structure.connections_into_steps[step_index], current_values, time_step, step.name)
+        input_sum = get_input_sum(simulator, input_steps_current_values, step_shape, step_index, time_step)
 
     if isinstance(step, TimedBoost):
         return dff.simulation.steps.timed_boost.timed_boost_time_step(constants["values"],
@@ -195,10 +213,10 @@ def simulate_time_step_for_step(step, step_index, simulator, current_values, sta
     #                                                                           time_and_variable_invariant_tensors["positional_grid"])
 
 
-@tf.function(jit_compile=True)
-#@tf.function
+#@tf.function(jit_compile=True)
+@tf.function
 def simulate_time_step(simulator, time_step, start_time, time_step_duration, current_values):
-    #logger.debug(f"trace simulate_time_step")
+    logger.debug(f"trace simulate_time_step")
 
     #before = time.time()
     # TODO see if performance can be improved by not creating a copy here
@@ -218,7 +236,7 @@ def simulate_time_step(simulator, time_step, start_time, time_step_duration, cur
 
 
 #@tf.function
-def get_input_sum(simulator, input_steps_values, step_shape, i):
+def get_input_sum(simulator, input_steps_values, step_shape, i, time_step=-1):
     #logger.debug(f"trace get_input_sum")
     step = simulator._neural_structure.steps[i]
 
@@ -233,7 +251,6 @@ def get_input_sum(simulator, input_steps_values, step_shape, i):
     kernel_positional_grids_by_connection = simulator._connection_kernel_positional_grids[step]
     pointwise_weights_by_connection = simulator._connection_pointwise_weights[step]
 
-
     # Handle the first incoming connection
     input = input_steps_values[0]
 
@@ -244,13 +261,17 @@ def get_input_sum(simulator, input_steps_values, step_shape, i):
         if isinstance(connections[0].activation_function, Sigmoid):
             input = tf.math.sigmoid(tf.multiply(connections[0].activation_function.beta, input))
 
+
     if connections[0].contract_dimensions is not None and len(connections[0].contract_dimensions) > 0:
 
         # Contract
         if contraction_weights_by_connection[0] is not None:
             input = tf.multiply(input, contraction_weights_by_connection[0])
-        for i in range(len(connections[0].contract_dimensions)):
-            input = tf.reduce_sum(input, axis=connections[0].contract_dimensions[i])
+
+        input = tf.reduce_sum(input, axis=connections[0].contract_dimensions)
+
+        #for i in range(len(connections[0].contract_dimensions)):
+        #    input = tf.reduce_sum(input, axis=connections[0].contract_dimensions[i])
 
     elif connections[0].expand_dimensions is not None and len(connections[0].expand_dimensions) > 0:
 
@@ -274,6 +295,10 @@ def get_input_sum(simulator, input_steps_values, step_shape, i):
     else:
         if kernel_weights_by_connection[0] is not None:
             input = convolve(input, kernel_weights_by_connection[0])
+
+
+    if dff.config.debug_john and step.name == "field a" and time_step % 20 == 0:
+        plt.plot(input.numpy()) and plt.ylim(-15,15) and plt.title(str(time_step.numpy()) + " input " + connections[0].input_step.name) and plt.show()
 
     input_sum = input
 
@@ -317,15 +342,26 @@ def get_input_sum(simulator, input_steps_values, step_shape, i):
             if kernel_weights_by_connection[j] is not None:
                 input = convolve(input, kernel_weights_by_connection[j])
 
+        if dff.config.debug_john and step.name == "field a" and time_step % 20 == 0:
+            if input.numpy().shape == ():
+                plt.plot([input.numpy()] * 2) and plt.title(str(time_step.numpy()) + " input " + connections[j].input_step.name) and plt.show()
+            else:
+                plt.plot(input.numpy()) and plt.ylim(-15,15) and plt.title(str(time_step.numpy()) + " input " + connections[j].input_step.name) and plt.show()
+
         input_sum = tf.add(input_sum, input)
 
     return input_sum
 
 
-def get_input_steps_current_values(connections_into_steps, current_values):
+def get_input_steps_current_values(connections_into_steps, current_values, time_step=-1, step_name=None):
     input_steps_current_values = []
     for i in range(len(connections_into_steps)):
         connection = connections_into_steps[i]
         input_step_index = connection.input_step_index
         input_steps_current_values.append(current_values[input_step_index])
+        if dff.config.debug_john and step_name == "field a" and time_step % 20 == 0:
+            if current_values[input_step_index].numpy().shape == ():
+                plt.plot([current_values[input_step_index].numpy()] * 2) and plt.title(str(time_step.numpy()) + " " + connection.input_step.name) and plt.show()
+            else:
+                plt.plot(current_values[input_step_index].numpy()) and plt.title(str(time_step.numpy()) + " " + connection.input_step.name) and plt.show()
     return input_steps_current_values

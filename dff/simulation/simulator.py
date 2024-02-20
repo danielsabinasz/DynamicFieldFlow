@@ -699,7 +699,7 @@ class Simulator:
         num_time_steps = ceil(duration / self._time_step_duration)
         return self.simulate_time_steps(num_time_steps, in_multiples_of)
 
-    def get_unrolled_simulation_call(self, num_time_steps):
+    def is_simulation_call_traced(self, num_time_steps):
         if num_time_steps not in self._simulation_calls_with_unrolled_time_steps:
             #self._simulation_calls_with_unrolled_time_steps[num_time_steps] = \
             #    create_unrolled_simulation_call(self, num_time_steps, self._time_step_duration)
@@ -752,7 +752,7 @@ class Simulator:
             if num_time_steps % in_multiples_of != 0:
                 raise RuntimeError(f"Cannot simulate {num_time_steps} time steps in multiples of {in_multiples_of}.")
 
-            new_graph = self.get_unrolled_simulation_call(in_multiples_of)
+            new_graph = self.is_simulation_call_traced(in_multiples_of)
             before_simulating = time.time()
             trace_duration = 0
             num_main_calls = floor(num_time_steps / in_multiples_of)
@@ -773,7 +773,7 @@ class Simulator:
             logger.info("Done simulating after " + str(time.time()-before_simulating-trace_duration) + " seconds")
 
         else:
-            new_graph = self.get_unrolled_simulation_call(1)
+            new_graph = self.is_simulation_call_traced(1)
             if num_time_steps > 0:
                 before_simulating = time.time()
                 trace_duration = 0
@@ -787,8 +787,7 @@ class Simulator:
                         trace_duration = time.time()-before
                         logger.info("Done tracing after " + str(trace_duration) + " seconds")
                         new_graph = False
-                if trace_duration == 0:
-                    logger.info("Done simulating after " + str(time.time()-before_simulating-trace_duration) + " seconds")
+                logger.info("Done simulating after " + str(time.time()-before_simulating-trace_duration) + " seconds")
             else:
                 raise RuntimeError("Trying to simulate 0 time steps. This is probably a mistake.")
 
